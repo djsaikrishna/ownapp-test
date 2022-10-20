@@ -4,6 +4,8 @@
 
 ### qBittorrent
 - Qbittorrent support for torrent and magnets
+- Select files from Torrent before downloading 
+- Zip and unzip
 
 ### Aria2c
 - Aria support for direct download links
@@ -36,16 +38,17 @@
 
 ### Database
 - SQL Database
-- Save rclone config file in db
-- Save user leech settings(thumbnails, sudo and allowed users, etc) in db
+- Save rclone.conf and token.pickle files on db
+- Save user leech settings(thumbnails, sudo and allowed users, etc) on db
 
 ### RSS
 - Rss feed with filter.
 
 ### Others
-- Telegram Navigation Bottom Menus to interact with cloud
+- Telegram Navigation Bottom Menus to interact with Cloud
 - Renaming of Telegram files
-- Load/Change rclone config file from bot.
+- Load/change rclone.conf file from bot
+- Load/change token.pickle from bot
 - Change all config variables from bot
 - File Manager (size, mkdir, delete, dedupe, rename)
 
@@ -73,11 +76,13 @@ zipmirror - mirror and zip to cloud
 mirrorset - select cloud/folder where to mirror
 mirrorbatch - mirror files in batch to cloud 
 ytdlmirror - mirror ytdlp supported link
+ytdlzipmirror- mirror and zip ytdlp supported link
 leech - leech from cloud to Telegram
 unzipleech - leech and extract to Telegram 
 zipleech - leech and zip to Telegram 
 leechbatch - leech files in batch to Telegram 
 ytdlleech - leech yt-dlp supported link
+ytdlzipleech - leech and zip yt-dlp supported link
 myfiles - file manager
 clone - clone gdrive file/folder from link
 copy - copy from cloud to cloud
@@ -108,7 +113,7 @@ restart - restart bot
 
  - Clone repo:
 
-        git clone https://github.com/Sam-Max/Rclone-Tg-Bot rclonetgbot/ && cd rclonetgbot
+        git clone https://github.com/Sam-Max/rclone-mirror-leech-telegram-bot rclonetgbot/ && cd rclonetgbot
 
  - Install Docker(skip this if deploying without docker).
 
@@ -130,7 +135,8 @@ restart - restart bot
    - Non mandatory variables:
         - `DOWNLOAD_DIR`: The path to the local folder where the downloads will go
         - `SUDO_USERS`: Fill user_id of users whom you want to give sudo permission separated by spaces. `Str`
-        - `DEFAULT_DRIVE`: set a default drive from your rclone.conf. `Str`
+        - `DEFAULT_DRIVE`: To set a default drive from your rclone.conf. `Str`
+        - `AUTO_MIRROR`: For auto mirroring files sent to the bot. Default is `False`. `Bool`
         - `ALLOWED_CHATS`: list of IDs of allowed chats who can use this bot separated by spaces `Str`
         - `UPSTREAM_REPO`: if your repo is private add your github repo link with format: `https://username:{githubtoken}@github.com/{username}/{reponame}`, so you can update your app from private repository on each restart. Get token from [Github settings](https://github.com/settings/tokens)
         - `UPSTREAM_BRANCH`: Upstream branch for update

@@ -17,9 +17,11 @@ Pyrogram
 psycopg2-binary
 urllib3
 feedparser
+APScheduler
 pillow
 tenacity
 speedtest-cli
+python-magic
 python-dotenv
 requests
 megasdkrestclient
