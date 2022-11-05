@@ -1,3 +1,4 @@
+
 # An Rclone Telegram bot to transfer to and from many clouds
 
 ## Features:
@@ -5,30 +6,42 @@
 ### qBittorrent
 - Qbittorrent support for torrent and magnets
 - Select files from Torrent before downloading 
-- Zip and unzip
+- Edit Global Options from bot settings
 
 ### Aria2c
 - Aria support for direct download links
+- Netrc support
+- Direct link authentication from bot
+- Edit Global Options from bot settings
+
+### Rclone
+- Copy file/folder from cloud to cloud
+- Leech file/folder from cloud to Telegram
+- Mirror from Telegram to a selected cloud
+- Telegram Navigation Button Menus to interact with clouds
+- File Manager: size, mkdir, delete, dedupe, rename
+- Service Accounts support with automatic switching
+- Clean remote trash
+- View storage info 
 
 ### Mirror
 - From Telegram to cloud
-- Torrent/magnets to cloud using qBittorrent
-- Mega.nz and directs links to cloud
-- Files in batch from Telegram to cloud
+- Link/Torrent/Magnets/Mega to cloud 
+- Renaming for Telegram files
+- Files in batch from Telegram restricted channels
 
 ### Leech
-- File/folder from cloud to Telegram
-- Link/magnets to Telegram using qBittorrent
-- Mega.nz and directs links to Telegram
-- Files in batch from Telegram to Telegram
+- Link/Torrent/Magnets/Mega to Telegram 
+- Thumbnail for each user
+- Set upload as document or as media for each user
+- Files in batch from Telegram restricted channels
+- Upload files to a superGroup/channel.
 - 4gb file with premium account
 
-### Copy
-- Copy file/folder from cloud to cloud
-
 ### Status
-- Progress bar for download and upload
-- Status for tasks
+- Status while downloading and uploading
+- Status Pages for unlimited tasks
+- Cancel all buttons for choosing specific tasks status to cancel
 
 ### Archives
 - Extract and Zip link/file from Telegram to cloud
@@ -42,69 +55,70 @@
 - Save user leech settings(thumbnails, sudo and allowed users, etc) on db
 
 ### RSS
-- Rss feed with filter.
+- Rss feed with filter support
 
 ### Others
-- Telegram Navigation Bottom Menus to interact with Cloud
-- Renaming of Telegram files
-- Load/change rclone.conf file from bot
-- Load/change token.pickle from bot
-- Change all config variables from bot
-- File Manager (size, mkdir, delete, dedupe, rename)
+- Load/change token.pickle and rclone.conf from bot
+- Change most of the config variables from bot
 
 ### From Other Repositories
 - Search on torrents with Torrent Search API or with variable plugins using qBittorrent search engine
 - SQL Database support
 - Ytdl support
+- Docker support
+- Extensions Filter for the files to be uploaded/cloned
 - Select files from Torrent before downloading 
-- Get restricted messages from private channels.
+- Direct link authentication for specific link while using the bot (it will work even if only username or password)
+- Custom name for all links except torrents and mega. 
+- Save restricted messages from private channels.
 - Upload files to supergroup/channel.
 - Clone Google Drive files/folders from link
 - Thumbnail support
-- Set upload as document or as media 
+- Upload as document or as media 
 - Update bot at startup and with restart command using UPSTREAM_REPO
-- Own users settings when using bot or added to supergroup (thumbnail, as document/as media, rclone.conf)
+- Own users settings when using bot or added to supergroup
 - Direct links Supported:
   > letsupload.io, hxfile.co, anonfiles.com, bayfiles.com, antfiles, fembed.com, fembed.net, femax20.com, layarkacaxxi.icu, fcdn.stream, sbplay.org, naniplay.com, naniplay.nanime.in, naniplay.nanime.biz, sbembed.com, streamtape.com, streamsb.net, feurl.com, pixeldrain.com, racaty.net, 1fichier.com, 1drv.ms (Only works for file not folder or business account), uptobox.com (Uptobox account must be premium) and solidfiles.com
+- Extract filetypes:
+  > ZIP, RAR, TAR, 7z, ISO, WIM, CAB, GZIP, BZIP2, APM, ARJ, CHM, CPIO, CramFS, DEB, DMG, FAT, HFS, LZH, LZMA, LZMA2, MBR, MSI, MSLZ, NSIS, NTFS, RPM, SquashFS, UDF, VHD, XAR, Z, TAR.XZ
 
 ## Commands for bot(set through @BotFather)
 
 ```
-mirror - mirror to selected cloud 
-unzipmirror - mirror and extract to cloud 
-zipmirror - mirror and zip to cloud 
-mirrorset - select cloud/folder where to mirror
-mirrorbatch - mirror files in batch to cloud 
-ytdlmirror - mirror ytdlp supported link
-ytdlzipmirror- mirror and zip ytdlp supported link
-leech - leech from cloud to Telegram
-unzipleech - leech and extract to Telegram 
-zipleech - leech and zip to Telegram 
-leechbatch - leech files in batch to Telegram 
-ytdlleech - leech yt-dlp supported link
-ytdlzipleech - leech and zip yt-dlp supported link
-myfiles - file manager
-clone - clone gdrive file/folder from link
-copy - copy from cloud to cloud
-config - rclone config
-usetting - user settings
-ownsetting - owner settings
-rsslist - list all subscribed rss feed 
-rssget - get specific No. of links from specific rss feed
-rsssub - subscribe new rss feed
-rssunsub - unsubscribe rss feed by title
-rssset - rss settings
-cleanup - clean drive trash
-cancelall - cancel all tasks
-storage - drive details
-search - search for torrents
-status - status message of tasks
-stats - bot stats
-shell - run cmds in shell
-speedtest - test server speed
-log - bot log
-ping - ping bot
-restart - restart bot
+mirror - Mirror to selected cloud 
+unzipmirror - Mirror and extract to cloud 
+zipmirror - Mirror and zip to cloud 
+mirrorset - Select cloud/folder where to mirror
+mirrorbatch - Mirror Telegram files in batch to cloud 
+ytdlmirror - Mirror ytdlp supported link
+ytdlzipmirror- Mirror and zip ytdlp supported link
+leech - Leech from cloud to Telegram
+unzipleech - Leech and extract to Telegram 
+zipleech - Leech and zip to Telegram 
+leechbatch - Leech Telegram files in batch to Telegram 
+ytdlleech - Leech yt-dlp supported link
+ytdlzipleech - Leech and zip yt-dlp supported link
+myfiles - File manager
+clone - Clone gdrive file/folder from link
+copy - Copy from cloud to cloud
+config - Load config files
+usetting - User settings
+ownsetting - Owner settings
+rsslist - List all subscribed rss feed 
+rssget - Get specific No. of links from specific rss feed
+rsssub - Subscribe new rss feed
+rssunsub - Unsubscribe rss feed by title
+rssset - Rss settings
+cleanup - Clean drive trash
+cancelall - Cancel all tasks
+storage - Drive details
+search - Search for torrents
+status - Status message of tasks
+stats - Bot stats
+shell - Run cmds in shell
+log - Bot log
+ping - Ping bot
+restart - Restart bot
 ```
 
 ## Deploy on VPS: 
@@ -135,15 +149,24 @@ restart - restart bot
    - Non mandatory variables:
         - `DOWNLOAD_DIR`: The path to the local folder where the downloads will go
         - `SUDO_USERS`: Fill user_id of users whom you want to give sudo permission separated by spaces. `Str`
-        - `DEFAULT_DRIVE`: To set a default drive from your rclone.conf. `Str`
-        - `AUTO_MIRROR`: For auto mirroring files sent to the bot. Default is `False`. `Bool`
         - `ALLOWED_CHATS`: list of IDs of allowed chats who can use this bot separated by spaces `Str`
-        - `UPSTREAM_REPO`: if your repo is private add your github repo link with format: `https://username:{githubtoken}@github.com/{username}/{reponame}`, so you can update your app from private repository on each restart. Get token from [Github settings](https://github.com/settings/tokens)
-        - `UPSTREAM_BRANCH`: Upstream branch for update
+        - `AUTO_MIRROR`: For auto mirroring files sent to the bot. **NOTE**: If you add bot to group(not channel), you can also use this feature. Default is `False`. `Bool`
         - `DATABASE_URL`: Your SQL Database URL. Follow this [Generate Database](https://github.com/anasty17/mirror-leech-telegram-bot/tree/master#generate-database) to generate database. Data that will be saved in Database: auth and sudo users, leech settings including thumbnails for each user. `Str`
         - `CMD_INDEX`: index number that will be added at the end of all commands. `Str`
-        - `EDIT_SLEEP_SECS`: Seconds for update regulary rclone progress message. Default to 10
+        - `STATUS_LIMIT`: No. of tasks shown in status message with buttons. **NOTE**: Recommended limit is `4` tasks. `Str`
         - `TORRENT_TIMEOUT`: Timeout of dead torrents downloading with qBittorrent
+
+   - UPDATE
+     - `UPSTREAM_REPO`: if your repo is private add your github repo link with format: `https://username:{githubtoken}@github.com/{username}/{reponame}`, so you can update your app from private repository on each restart. Get token from [Github settings](https://github.com/settings/tokens)
+     - `UPSTREAM_BRANCH`: Upstream branch for update. Default is `master`. `Str`
+    **NOTE**: If any change in docker or requirements you will need to deploy/build again with updated repo for changes to apply.
+
+   - RCLONE
+     - `DEFAULT_REMOTE`: To set a default remote from your rclone config for mirroring (only for owner). `Str`
+     - `MULTI_RCLONE_CONFIG`: For using owner rclone config for all users or each user with their own rclone config. Default to False. `Bool` 
+     - `USE_SERVICE_ACCOUNTS`: For enabling Service Accounts for rclone copy. Default to False. `Bool`.
+     - `SERVICE_ACCOUNTS_REMOTE`= To set remote (teamdrive with id) from your rclone config with the service accounts added. `Str`
+     - `SERVER_SIDE_COPY`= For enabling or desabling rclone server side copy. Default to False. **NOTE**: if you get any error while copy set this to `False`. `Bool`.
 
    - CLONE
      - `GDRIVE_FOLDER_ID`: Folder/TeamDrive ID of the Google Drive Folder or `root` to which you want to clone. Required for `Google Drive`. `Str`
@@ -152,38 +175,36 @@ restart - restart bot
      **Notes**: Must add **token.pickle** file directly to root for cloning to work. You can use /config command to add from bot.
    
    - LEECH
-        - `LEECH_SPLIT_SIZE`: Telegram upload limit in bytes, to automatically slice the file bigger that this size into small parts to upload to Telegram. Default is `2GB` for non premium account or `4GB` if your account is premium
-        - `DUMP_CHAT`: Chat ID. Upload files to specific chat. `str`. **NOTE**: Only available for superGroup/channel. Add `-100` before channel/supergroup id.
-        - `USER_SESSION_STRING`: Pyrogram session string for batch commands and to download/upload using your telegram account (needed for telegram premium upload). To generate string session use this command `python3 session_generator.py` on command line on your pc from repository folder. **NOTE**: when using string session, you have to use with supergroup not bot.
-        - `AS_DOCUMENT`: Default type of Telegram file upload. Default is `False` mean as media. `Bool`
+     - `LEECH_SPLIT_SIZE`: Telegram upload limit in bytes, to automatically slice the file bigger that this size into small parts to upload to Telegram. Default is `2GB` for non premium account or `4GB` if your account is premium
+     - `EQUAL_SPLITS`: Split files larger than **LEECH_SPLIT_SIZE** into equal parts size (not working with zip cmd). Default is `False`. `Bool`
+     - `USER_SESSION_STRING`: Pyrogram session string for batch commands and to upload using your telegram account (needed for telegram premium upload). To generate string session use this command `python3 session_generator.py` on command line on your pc from repository folder. **NOTE**: When using string session, you have to use with supergroup/channel not with bot. You can also use batch commands without string session, but you can't save messages from private/restricted channels.
+      - `DUMP_CHAT`: Chat ID. Upload files to specific chat. `str`. **NOTE**: Only available for superGroup/channel. Add `-100` before channel/supergroup id. Add bot in that channel/group as Admin
 
    - MEGA
-        - `MEGA_API_KEY`: Mega.nz API key to mirror mega.nz links. Get it from Mega SDK Page
-        - `MEGA_EMAIL_ID`: E-Mail ID used to sign up on mega.nz for using premium account
-        - `MEGA_PASSWORD`: Password for mega.nz account
+     - `MEGA_API_KEY`: Mega.nz API key to mirror mega.nz links. Get it from Mega SDK Page
+     - `MEGA_EMAIL_ID`: E-Mail ID used to sign up on mega.nz for using premium account
+     - `MEGA_PASSWORD`: Password for mega.nz account
 
    - RSS
-        - `RSS_DELAY`: Time in seconds for rss refresh interval. Default is `900` in sec. `Str`
-        - `RSS_COMMAND`: Choose command for the desired action. `Str`
-        - `RSS_CHAT_ID`: Chat ID where rss links will be sent. Add `-100` before channel id. `Str`
-        - `RSS_USER_SESSION_STRING`: To send rss links from your telegram account. To generate session string use this command `python3 generate_string_session.py`. `Str`. **NOTE**: Don't use same session string as `USER_SESSION_STRING`.
-        - **RSS NOTE**: `DATABASE_URL` and `RSS_CHAT_ID` are required, otherwise rss commands will not work. You must use bot in group. You can also add the bot to a channel and link this channel to group so messages sent by bot to channel will be forwarded to group without using `RSS_USER_STRING_SESSION`.    
+     - `RSS_DELAY`: Time in seconds for rss refresh interval. Default is `900` in sec. `Str`
+     - `RSS_COMMAND`: Choose command for the desired action. `Str`
+     - `RSS_CHAT_ID`: Chat ID where rss links will be sent. Add `-100` before channel id. `Str`
+     - `RSS_USER_SESSION_STRING`: To send rss links from your telegram account. To generate session string use this command `python3 generate_string_session.py`. `Str`. **NOTE**: Don't use same session string as `USER_SESSION_STRING`.
+     - **RSS NOTE**: `DATABASE_URL` and `RSS_CHAT_ID` are required, otherwise rss commands will not work. You must use bot in group. You can also add the bot to a channel and link this channel to group so messages sent by bot to channel will be forwarded to group without using `RSS_USER_STRING_SESSION`.    
 
-   - qBittorrent
-        - `BASE_URL_OF_BOT`: Valid BASE URL where the bot is deployed to use qbittorrent web selection. Format of URL should be http://myip, where myip is the IP/Domain(public). If you have chosen port other than 80 so write it in this format http://myip:port (http and not https). Str
-        - `SERVER_PORT`: Port. Str
-        - `WEB_PINCODE`: If empty or False means no more pincode required while qbit web selection. Bool
-        Qbittorrent NOTE: If your facing ram exceeded issue then set limit for MaxConnecs, decrease AsyncIOThreadsCount in qbittorrent config and set limit of DiskWriteCacheSize to 32
+   - QBITTORRENT
+     - `BASE_URL_OF_BOT`: Valid BASE URL where the bot is deployed to use qbittorrent web selection. Format of URL should be http://myip, where myip is the IP/Domain(public). If you have chosen port other than 80 so write it in this format http://myip:port (http and not https). Str
+     - `SERVER_PORT`: Port. Str
+     - `WEB_PINCODE`: If empty or False means no more pincode required while qbit web selection. Bool
+     Qbittorrent NOTE: If your facing ram exceeded issue then set limit for MaxConnecs, decrease AsyncIOThreadsCount in qbittorrent config and set limit of DiskWriteCacheSize to 32
 
-   - Torrent Search
-        - `SEARCH_API_LINK`: Search api app link. Get your api from deploying this [repository](https://github.com/Ryuk-me/Torrent-Api-py). `Str`
-        - `SEARCH_LIMIT`: Search limit for search api, limit for each site. Default is zero. `Str`
-        - `SEARCH_PLUGINS`: List of qBittorrent search plugins (github raw links). `Str`
-        - Supported Sites:
-        >1337x, Piratebay, Nyaasi, Torlock, Torrent Galaxy, Zooqle, Kickass, Bitsearch, MagnetDL, Libgen, YTS, Limetorrent, TorrentFunk, Glodls, TorrentProject and YourBittorrent
+   - TORRENT SEARCH
+     - `SEARCH_API_LINK`: Search api app link. Get your api from deploying this [repository](https://github.com/Ryuk-me/Torrent-Api-py). `Str`
+     - `SEARCH_LIMIT`: Search limit for search api, limit for each site. Default is zero. `Str`
+     - `SEARCH_PLUGINS`: List of qBittorrent search plugins (github raw links). `Str`
+     - Supported Sites:
+     >1337x, Piratebay, Nyaasi, Torlock, Torrent Galaxy, Zooqle, Kickass, Bitsearch, MagnetDL, Libgen, YTS, Limetorrent, TorrentFunk, Glodls, TorrentProject and YourBittorrent
 
-   - Private Files
-        - `YT_COOKIES_URL`: Youtube authentication cookies. Check setup [Here](https://github.com/ytdl-org/youtube-dl#how-do-i-pass-cookies-to-youtube-dl). Use gist raw link and remove commit id from the link, so you can edit it from gists only. `Str`
  
 3. **Deploying on VPS Using Docker**
 
@@ -241,6 +262,7 @@ sudo docker-compose stop
 sudo docker-compose start
 
 ```
+
 ## Generate Database
 
 **1. Using Railway**
@@ -296,6 +318,96 @@ pip3 install google-api-python-client google-auth-httplib2 google-auth-oauthlib
 python3 generate_drive_token.py
 ```
 ------
+
+## Using Service Accounts to avoid user rate limit [For Google Drive Remotes]
+
+>**NOTE**: Using Service Accounts is only recommended for Team Drive.
+
+### 1. Generate Service Accounts. 
+
+**Warning**: Abuse of this feature is not the aim of this project and we do not recommend that you make a lot of projects, just one project and 100 SAs allow you plenty of use, its also possible that over abuse might get your projects banned by Google.
+
+>**NOTE**: If you have created SAs in past from this script, you can also just re download the keys by running:
+```
+python3 gen_sa_accounts.py --download-keys $PROJECTID
+```
+>**NOTE:** 1 Service Account can copy around 750 GB a day, 1 project can make 100 Service Accounts so you can copy 75 TB a day.
+
+#### Two methods to create service accounts
+Choose one of these methods
+
+##### 1. Create Service Accounts in existed Project (Recommended Method)
+
+- List your projects ids
+```
+python3 gen_sa_accounts.py --list-projects
+```
+- Enable services automatically by this command
+```
+python3 gen_sa_accounts.py --enable-services $PROJECTID
+```
+- Create Sevice Accounts to current project
+```
+python3 gen_sa_accounts.py --create-sas $PROJECTID
+```
+- Download Sevice Accounts as accounts folder
+```
+python3 gen_sa_accounts.py --download-keys $PROJECTID
+```
+##### 2. Create Service Accounts in New Project
+```
+python3 gen_sa_accounts.py --quick-setup 1 --new-only
+```
+A folder named accounts will be created which will contain keys for the Service Accounts.
+
+### 2. Add Service Accounts
+
+#### Two methods to add service accounts
+Choose one of these methods
+
+##### 1. Add Them To Google Group then to Team Drive (Recommended)
+- Mount accounts folder
+```
+cd accounts
+```
+- Grab emails form all accounts to emails.txt file that would be created in accounts folder
+- `For Windows using PowerShell`
+```
+$emails = Get-ChildItem .\**.json |Get-Content -Raw |ConvertFrom-Json |Select -ExpandProperty client_email >>emails.txt
+```
+- `For Linux`
+```
+grep -oPh '"client_email": "\K[^"]+' *.json > emails.txt
+```
+- Unmount acounts folder
+```
+cd ..
+```
+Then add emails from emails.txt to Google Group, after that add this Google Group to your Shared Drive and promote it to manager and delete email.txt file from accounts folder
+
+##### 2. Add Them To Team Drive Directly
+- Run:
+```
+python3 add_to_team_drive.py -d SharedTeamDriveSrcID
+```
+------
+
+## Yt-dlp and Aria2c Authentication Using .netrc File
+For using your premium accounts in yt-dlp or for protected Index Links, create .netrc and not netrc, this file will be hidden, so view hidden files to edit it after creation. Use following format on file: 
+
+Format:
+```
+machine host login username password my_password
+```
+Example:
+```
+machine example.workers.dev login index_username password index_password
+```
+**Note**: Using aria2c you can also use without username. Multiple accounts of different hosts can be added each separated by a new line.
+
+**Youtube Note**: For `youtube` authentication use [cookies.txt](https://github.com/ytdl-org/youtube-dl#how-do-i-pass-cookies-to-youtube-dl) file.
+
+-----
 
 ## Bot Screenshot: 
 

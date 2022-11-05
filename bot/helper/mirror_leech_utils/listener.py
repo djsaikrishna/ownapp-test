@@ -5,7 +5,7 @@ from json import loads
 from os import listdir, path as ospath, remove, walk
 import os
 from re import search
-from bot import DOWNLOAD_DIR, LOGGER, LEECH_SPLIT_SIZE, TG_MAX_FILE_SIZE, Interval, status_dict, status_dict_lock, aria2
+from bot import DOWNLOAD_DIR, LOGGER, TG_MAX_FILE_SIZE, Interval, status_dict, status_dict_lock, aria2, config_dict
 from subprocess import Popen
 from pyrogram.enums import ChatType
 from bot.helper.ext_utils.exceptions import NotSupportedExtractionArchive
@@ -21,24 +21,24 @@ from bot.helper.mirror_leech_utils.status_utils.split_status import SplitStatus
 from bot.helper.mirror_leech_utils.status_utils.zip_status import ZipStatus
 from bot.helper.mirror_leech_utils.upload_utils.telegram_uploader import TelegramUploader
 
+
+
 class MirrorLeechListener:
-    def __init__(self, message, tag, user_id, newName= None, isRename= False, isZip=False, extract=False, pswd=None, isLeech= False, select=False, seed=False):
+    def __init__(self, message, tag, user_id, isZip=False, extract=False, pswd=None, isLeech= False, select=False, seed=False):
         self.message = message
         self.uid = self.message.id
+        self.user_id = user_id
         self.__isZip = isZip
         self.__extract = extract
         self.__pswd = pswd
         self.__tag = tag
         self.seed = seed
         self.select = select
-        self.newName= newName
-        self.isRename= isRename
         self.dir = f"{DOWNLOAD_DIR}{self.uid}"
-        self.isPrivate = message.chat.type == ChatType.PRIVATE
-        self.user_id= user_id
-        self.__isLeech= isLeech
+        self.isPrivate = message.chat.type in [ChatType.PRIVATE, ChatType.GROUP]
+        self.__isLeech = isLeech
         self.__suproc = None
-    
+
     async def clean(self):
         try:
             Interval[0].cancel()
@@ -65,6 +65,7 @@ class MirrorLeechListener:
             path = f"{f_path}.zip" 
             async with status_dict_lock:
                 status_dict[self.uid] = ZipStatus(name, f_size, gid, self)
+            LEECH_SPLIT_SIZE = config_dict['LEECH_SPLIT_SIZE']    
             if self.__pswd is not None:
                 if int(f_size) > LEECH_SPLIT_SIZE:
                     LOGGER.info(f'Zip: orig_path: {f_path}, zip_path: {path}.0*')
@@ -134,16 +135,14 @@ class MirrorLeechListener:
                 LOGGER.info("Not any valid archive, uploading file as it is.")
                 path = f_path
         else:
-            if self.isRename:
-                path = rename_file(f_path, self.newName) 
-            else:
-                path= f_path 
+            path= f_path 
         up_dir, up_name = path.rsplit('/', 1)
         if self.__isLeech:
             m_size = []
             o_files = []
             if not self.__isZip:
                 checked = False
+                LEECH_SPLIT_SIZE = config_dict['LEECH_SPLIT_SIZE']
                 for dirpath, subdir, files in walk(up_dir, topdown=False):
                     for file_ in files:
                         f_path = ospath.join(dirpath, file_)
@@ -183,20 +182,10 @@ class MirrorLeechListener:
             await rc_mirror.mirror()
 
     async def onRcloneCopyComplete(self, conf, origin_dir, dest_drive, dest_dir):
-        #Get Link
-        button= ButtonMaker()
-        cmd = ["rclone", "link", f'--config={conf}', f"{dest_drive}:{dest_dir}{origin_dir}"]
-        process = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE)
-        out, err = await process.communicate()
-        url = out.decode().strip()
-        button.url_buildbutton("Cloud Link 🔗", url)
-        return_code = await process.wait()
-        if return_code != 0:
-             return await sendMessage(err.decode().strip(), self.message)
         #Calculate Size
         cmd = ["rclone", "size", f'--config={conf}', "--json", f"{dest_drive}:{dest_dir}{origin_dir}"]
         process = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE)
-        out, _ = await process.communicate()
+        out, err = await process.communicate()
         output = out.decode().strip()
         return_code = await process.wait()
         if return_code != 0:
@@ -207,7 +196,19 @@ class MirrorLeechListener:
         format_out = f"**Total Files** {files}" 
         format_out += f"\n**Total Size**: {size}"
         format_out += f"\n<b>cc: </b>{self.__tag}"
-        await sendMarkup(format_out, self.message, reply_markup= button.build_menu(1))
+        #Get Link
+        cmd = ["rclone", "link", f'--config={conf}', f"{dest_drive}:{dest_dir}{origin_dir}"]
+        process = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE)
+        out, err = await process.communicate()
+        url = out.decode().strip()
+        return_code = await process.wait()
+        if return_code == 0:
+            button= ButtonMaker()
+            button.url_buildbutton("Cloud Link 🔗", url)
+            await sendMarkup(format_out, self.message, reply_markup= button.build_menu(1))
+        else:
+            LOGGER.info(err.decode().strip())
+            await sendMessage(format_out, self.message)
         clean_download(self.dir)
         async with status_dict_lock:
             try:
@@ -275,7 +276,6 @@ class MirrorLeechListener:
                     fmsg = ''
             if fmsg != '':
                 await sendMessage(msg + fmsg, self.message)
-            return
         clean_download(self.dir)
         async with status_dict_lock:
             try:

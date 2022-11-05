@@ -1,9 +1,8 @@
 from time import time
-from bot import OWNER_ID, ALLOWED_CHATS, LOGGER, SUDO_USERS, Interval, QbInterval, bot, Bot
-from os import path as ospath, remove as osremove, execl as osexecl, kill, popen
+from bot import Interval, QbInterval, bot, botloop
+from os import path as ospath, remove as osremove, execl as osexecl
 from pyrogram.filters import command
 from pyrogram.handlers import MessageHandler
-from signal import SIGKILL
 from sys import executable
 from subprocess import run as srun
 from bot.helper.ext_utils.bot_commands import BotCommands
@@ -11,19 +10,19 @@ from bot.helper.ext_utils.filters import CustomFilters
 from bot.helper.ext_utils.message_utils import editMessage, sendMarkup, sendMessage
 from bot.helper.ext_utils.misc_utils import ButtonMaker, clean_all, start_cleanup
 from bot.helper.ext_utils import db_handler
-from bot.modules import batch, cancel, config, copy, leech, mirror, mirrorset, myfilesset, owner_settings, search, myfiles, speedtest, stats, status, clone, storage, cleanup, user_settings, ytdlp, shell, bt_select, rss
+from bot.modules import batch, cancel, config, copy, leech, mirror, mirrorset, myfilesset, owner_settings, search, myfiles, stats, status, clone, storage, cleanup, user_settings, ytdlp, shell, bt_select, rss
+
 
 print("Successfully deployed!")
 
 async def start(client, message):
-    user_id= message.from_user.id
     buttons = ButtonMaker()
     buttons.url_buildbutton("Repo", "https://github.com/Sam-Max/rclone-mirror-leech-telegram-bot")
     buttons.url_buildbutton("Owner", "https://github.com/Sam-Max")
     reply_markup = buttons.build_menu(2)
-    if user_id in SUDO_USERS or user_id in ALLOWED_CHATS or user_id == OWNER_ID or message.chat.id in ALLOWED_CHATS:
+    if CustomFilters.user_filter or CustomFilters.chat_filter:
         msg = '''
-**Hello, ¡Welcome to Rclone-Tg-Bot!\n
+**Hello, ¡Welcome to Rclone-Telegram-Bot!\n
 I can help you copy files from one cloud to another.
 I can also can mirror-leech files and links to Telegram or cloud**\n\n
         '''
@@ -40,7 +39,7 @@ async def restart(client, message):
         QbInterval[0].cancel()
         QbInterval.clear()
     clean_all()
-    srun(["pkill", "-f", "gunicorn|aria2c|rclone|megasdkrest|qbittorrent-nox|ffmpeg"])
+    srun(["pkill", "-9", "-f", "gunicorn|aria2c|rclone|megasdkrest|qbittorrent-nox|ffmpeg"])
     srun(["python3", "update.py"])
     with open(".restartmsg", "w") as f:
         f.truncate(0)
@@ -61,7 +60,7 @@ async def main():
     if ospath.isfile(".restartmsg"):
         with open(".restartmsg") as f:
             chat_id, msg_id = map(int, f)
-        await Bot.edit_message_text(chat_id, msg_id, "Restarted successfully!")     
+        await bot.edit_message_text(chat_id, msg_id, "Restarted successfully!")     
         osremove(".restartmsg")
 
     start_handler = MessageHandler(start, filters= command(BotCommands.StartCommand))
@@ -69,11 +68,11 @@ async def main():
     log_handler = MessageHandler(get_log, filters= command(BotCommands.LogsCommand) & (CustomFilters.owner_filter | CustomFilters.sudo_filter))
     ping_handler = MessageHandler(ping, filters= command(BotCommands.PingCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
    
-    Bot.add_handler(start_handler)
-    Bot.add_handler(restart_handler)
-    Bot.add_handler(log_handler)
-    Bot.add_handler(ping_handler)
+    bot.add_handler(start_handler)
+    bot.add_handler(restart_handler)
+    bot.add_handler(log_handler)
+    bot.add_handler(ping_handler)
 
-bot.loop.run_until_complete(main())
-bot.run_until_disconnected()
+botloop.run_until_complete(main())
+botloop.run_forever()
 

@@ -3,7 +3,7 @@ from os import remove as osremove, path as ospath, mkdir
 from PIL import Image
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram import filters
-from bot import AS_DOC_USERS, AS_MEDIA_USERS, AS_DOCUMENT, DB_URI, LOGGER, Bot
+from bot import AS_DOC_USERS, AS_MEDIA_USERS, DB_URI, bot, config_dict
 from bot.helper.ext_utils.bot_commands import BotCommands
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.ext_utils.filters import CustomFilters
@@ -15,11 +15,7 @@ def getleechinfo(from_user):
     name = from_user.first_name
     buttons = ButtonMaker()
     thumbpath = f"Thumbnails/{user_id}.jpg"
-    if (
-        user_id in AS_DOC_USERS
-        or user_id not in AS_MEDIA_USERS
-        and AS_DOCUMENT
-    ):
+    if (user_id in AS_DOC_USERS or user_id not in AS_MEDIA_USERS and config_dict['AS_DOCUMENT']):
         ltype = "DOCUMENT"
         buttons.cb_buildbutton("Send As Media", f"leechset {user_id} med")
     else:
@@ -120,6 +116,6 @@ async def handle_leech_set_type(client, callback_query):
 leech_set_handler = MessageHandler(handle_leech_set, filters= filters.command(BotCommands.UserSetCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
 but_set_handler = CallbackQueryHandler(handle_leech_set_type, filters= filters.regex("leechset"))
 
-Bot.add_handler(leech_set_handler)
-Bot.add_handler(but_set_handler)
+bot.add_handler(leech_set_handler)
+bot.add_handler(but_set_handler)
         

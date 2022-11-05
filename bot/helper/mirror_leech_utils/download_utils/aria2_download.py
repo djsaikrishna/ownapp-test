@@ -3,7 +3,7 @@
 
 from asyncio import run_coroutine_threadsafe
 from time import sleep
-from bot import LOGGER, status_dict_lock, status_dict, aria2, botloop
+from bot import LOGGER, config_dict, status_dict_lock, status_dict, aria2, botloop, aria2c_global, aria2_options
 from bot.helper.ext_utils.bot_utils import is_magnet, new_thread
 from bot.helper.ext_utils.message_utils import sendMessage, sendStatusMessage
 from bot.helper.ext_utils.misc_utils import getDownloadByGid
@@ -71,10 +71,17 @@ def start_listener():
                                   on_bt_download_complete=__onBtDownloadComplete,
                                   timeout=60)
 
-async def add_aria2c_download(link: str, path, listener, filename):
-    args = {'dir': path, 'max-upload-limit': '1K'}
+async def add_aria2c_download(link: str, path, listener, filename, auth):
+    args = {'dir': path, 'max-upload-limit': '1K', 'netrc-path': '/usr/src/app/.netrc'}
+    a2c_opt = {**aria2_options}
+    [a2c_opt.pop(k) for k in aria2c_global if k in aria2_options]
+    args.update(a2c_opt)
     if filename:
         args['out'] = filename
+    if auth:
+        args['header'] = f"authorization: {auth}"
+    if TORRENT_TIMEOUT := config_dict['TORRENT_TIMEOUT']:
+        args['bt-stop-timeout'] = str(TORRENT_TIMEOUT)
     if is_magnet(link):
         download = await botloop.run_in_executor(None, aria2.add_magnet, link, args)  
     else:

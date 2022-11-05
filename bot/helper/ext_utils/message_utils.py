@@ -1,7 +1,10 @@
+# Source: https://github.com/anasty17/mirror-leech-telegram-bot/
+# Adapted for pyrogram library and asyncio
+
 from asyncio import sleep
 from os import remove
 from time import time
-from bot import LOGGER, RSS_CHAT_ID, STATUS_UPDATE_INTERVAL, Bot, Interval, rss_session, status_reply_dict_lock, status_reply_dict
+from bot import LOGGER, bot, Interval, rss_session, config_dict, status_reply_dict_lock, status_reply_dict
 from pyrogram.errors.exceptions import FloodWait, MessageNotModified
 from pyrogram.enums.parse_mode import ParseMode
 from bot.helper.ext_utils.bot_utils import get_readable_message, setInterval
@@ -9,7 +12,7 @@ from bot.helper.ext_utils.bot_utils import get_readable_message, setInterval
 
 async def sendMessage(text: str, message):
     try:
-        return await Bot.send_message(message.chat.id, reply_to_message_id=message.id,
+        return await bot.send_message(message.chat.id, reply_to_message_id=message.id,
                             text=text, disable_web_page_preview=True)
     except FloodWait as fw:
         await sleep(fw.value)
@@ -19,7 +22,7 @@ async def sendMessage(text: str, message):
 
 async def sendMarkup(text: str, message, reply_markup):
     try:
-        return await Bot.send_message(message.chat.id,
+        return await bot.send_message(message.chat.id,
                             reply_to_message_id=message.id,
                             text=text, 
                             reply_markup=reply_markup)
@@ -31,7 +34,7 @@ async def sendMarkup(text: str, message, reply_markup):
 
 async def editMarkup(text: str, message, reply_markup):
     try:
-        return await Bot.edit_message_text(message.chat.id,
+        return await bot.edit_message_text(message.chat.id,
                                     message.id,
                                     text=text, 
                                     reply_markup=reply_markup)
@@ -45,7 +48,7 @@ async def editMarkup(text: str, message, reply_markup):
 
 async def editMessage(text: str, message, reply_markup=None):
     try:
-        return await Bot.edit_message_text(text=text, message_id=message.id,
+        return await bot.edit_message_text(text=text, message_id=message.id,
                             chat_id=message.chat.id, reply_markup=reply_markup)
     except FloodWait as fw:
         await sleep(fw.value)
@@ -59,7 +62,7 @@ async def editMessage(text: str, message, reply_markup=None):
 async def sendRss(text: str):
     if rss_session is None:
         try:
-            return await Bot.send_message(RSS_CHAT_ID, text, disable_web_page_preview=True)
+            return await bot.send_message(config_dict['RSS_CHAT_ID'], text, disable_web_page_preview=True)
         except FloodWait as e:
             LOGGER.warning(str(e))
             await sleep(e.value * 1.5)
@@ -70,7 +73,7 @@ async def sendRss(text: str):
     else:
         try:
             with rss_session:
-                return rss_session.send_message(RSS_CHAT_ID, text, disable_web_page_preview=True)
+                return rss_session.send_message(config_dict['RSS_CHAT_ID'], text, disable_web_page_preview=True)
         except FloodWait as e:
             LOGGER.warning(str(e))
             await sleep(e.value * 1.5)
@@ -81,7 +84,7 @@ async def sendRss(text: str):
             
 async def deleteMessage(message):
     try:
-        await Bot.delete_messages(chat_id=message.chat.id,
+        await bot.delete_messages(chat_id=message.chat.id,
                         message_ids=message.id)
     except Exception as e:
         LOGGER.error(str(e))
@@ -89,7 +92,7 @@ async def deleteMessage(message):
 async def sendFile(message, name: str, caption=""):
     try:
         with open(name, 'rb') as f:
-            await Bot.send_document(document=f, file_name=f.name, reply_to_message_id=message.id,
+            await bot.send_document(document=f, file_name=f.name, reply_to_message_id=message.id,
                              caption=caption, parse_mode=ParseMode.HTML, chat_id=message.chat.id)
         remove(name)
         return
@@ -147,7 +150,7 @@ async def sendStatusMessage(msg):
             message = await sendMarkup(progress, msg, buttons)
         status_reply_dict[msg.chat.id] = [message, time()]
         if not Interval:
-            Interval.append(setInterval(STATUS_UPDATE_INTERVAL, update_all_messages))
+            Interval.append(setInterval(config_dict['STATUS_UPDATE_INTERVAL'], update_all_messages))
 
 async def auto_delete_message(cmd_message, bot_message):
         await sleep(20)

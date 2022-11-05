@@ -1,7 +1,7 @@
 from asyncio import sleep
 from os import walk, rename, path as ospath, remove as osremove
 from time import time
-from bot import AS_DOC_USERS, AS_DOCUMENT, AS_MEDIA_USERS, DUMP_CHAT, EXTENSION_FILTER, LOGGER, Bot, app, botloop
+from bot import AS_DOC_USERS, AS_MEDIA_USERS, GLOBAL_EXTENSION_FILTER, LOGGER, config_dict, bot, app, botloop
 from pyrogram.enums.parse_mode import ParseMode
 from pyrogram.errors import FloodWait
 from PIL import Image
@@ -13,7 +13,7 @@ IMAGE_SUFFIXES = ("jpg", "jpx", "png", "cr2", "tif", "bmp", "jxr", "psa", "ico",
 
 class TelegramUploader():
     def __init__(self, path, name, size, listener= None) -> None:
-        self.client= app if app is not None else Bot
+        self.client= app if app else bot
         self.__path = path
         self.__listener = listener
         self.name= name
@@ -23,7 +23,7 @@ class TelegramUploader():
         self.__is_corrupted = False
         self.__is_cancelled = False
         self.__msgs_dict = {}
-        self.__as_doc = AS_DOCUMENT
+        self.__as_doc = config_dict['AS_DOCUMENT']
         self.__thumb = f"Thumbnails/{listener.message.chat.id}.jpg"
         self.__start_time= time()
         self.uploaded_bytes = 0
@@ -35,7 +35,7 @@ class TelegramUploader():
         if ospath.isdir(self.__path):
             for dirpath, _, filenames in sorted(walk(self.__path)):
                 for file in sorted(filenames):
-                    if not file.lower().endswith(tuple(EXTENSION_FILTER)):
+                    if not file.lower().endswith(tuple(GLOBAL_EXTENSION_FILTER)):
                         self.__total_files += 1   
                         f_path = ospath.join(dirpath, file)
                         f_size = ospath.getsize(f_path)
@@ -46,7 +46,7 @@ class TelegramUploader():
                         await self.__upload_file(f_path, file)
                         if self.__is_cancelled:
                             return
-                        if (not self.__listener.isPrivate or DUMP_CHAT is not None) and not self.__is_corrupted:
+                        if (not self.__listener.isPrivate or config_dict['DUMP_CHAT']) and not self.__is_corrupted:
                             self.__msgs_dict[self.__sent_msg.link] = file
                         self._last_uploaded = 0
                         await sleep(1)
@@ -81,35 +81,65 @@ class TelegramUploader():
                     else:
                         width = 480
                         height = 320
-                    self.__sent_msg= await self.__sent_msg.reply_video(
-                        video= up_path,
-                        width= width,
-                        height= height,
-                        caption= cap,
-                        disable_notification=True,
-                        parse_mode= ParseMode.HTML,
-                        thumb= thumb_path,
-                        supports_streaming= True,
-                        duration= duration,
-                        progress= self.__upload_progress)
+                    if DUMP_CHAT:= config_dict['DUMP_CHAT']:    
+                        self.__sent_msg = await self.client.send_video(
+                            chat_id=DUMP_CHAT,
+                            video=up_path,
+                            width=width,
+                            height=height,
+                            caption=cap,
+                            disable_notification=True,
+                            thumb=thumb_path,
+                            supports_streaming=True,
+                            duration=duration,
+                            progress=self.__upload_progress)
+                    else:
+                        self.__sent_msg= await self.__sent_msg.reply_video(
+                            video= up_path,
+                            width= width,
+                            height= height,
+                            caption= cap,
+                            quote=True,
+                            disable_notification=True,
+                            thumb= thumb_path,
+                            supports_streaming= True,
+                            duration= duration,
+                            progress= self.__upload_progress)
                 elif is_audio:
                     duration, artist, title = get_media_info(up_path)
-                    self.__sent_msg = self.__sent_msg.reply_audio(audio=up_path,
-                        quote=True,
-                        caption=cap,
-                        duration=duration,
-                        performer=artist,
-                        title=title,
-                        thumb= thumb_path,
-                        disable_notification=True,
-                        progress=self.__upload_progress)    
+                    if DUMP_CHAT:= config_dict['DUMP_CHAT']:   
+                        self.__sent_msg = await self.client.send_audio(
+                            chat_id=DUMP_CHAT,
+                            audio=up_path,
+                            caption=cap,
+                            disable_notification=True,
+                            progress=self.__upload_progress)
+                    else:
+                        self.__sent_msg = await self.__sent_msg.reply_audio(
+                            audio=up_path,
+                            quote=True,
+                            caption=cap,
+                            duration=duration,
+                            performer=artist,
+                            title=title,
+                            thumb= thumb_path,
+                            disable_notification=True,
+                            progress=self.__upload_progress)    
                 elif file.endswith(IMAGE_SUFFIXES):
-                    self.__sent_msg = await self.__sent_msg.reply_photo(
-                        photo=up_path,
-                        caption=cap,
-                        parse_mode= ParseMode.HTML,
-                        disable_notification=True,
-                        progress= self.__upload_progress)
+                    if DUMP_CHAT:= config_dict['DUMP_CHAT']:   
+                        self.__sent_msg = await self.client.send_photo(
+                            chat_id=DUMP_CHAT,
+                            photo=up_path,
+                            caption=cap,
+                            disable_notification=True,
+                            progress=self.__upload_progress)
+                    else:
+                        self.__sent_msg = await self.__sent_msg.reply_photo(
+                            photo=up_path,
+                            caption=cap,
+                            quote=True,
+                            disable_notification=True,
+                            progress= self.__upload_progress)
                 else:
                     notMedia = True
             if self.__as_doc or notMedia:
@@ -119,13 +149,22 @@ class TelegramUploader():
                         if self.__thumb is None and thumb_path is not None and ospath.lexists(thumb_path):
                             osremove(thumb_path)
                         return
-                self.__sent_msg= await self.__sent_msg.reply_document(
-                    document= up_path, 
-                    caption= cap,
-                    parse_mode= ParseMode.HTML,
-                    force_document= True,
-                    thumb= thumb_path,
-                    progress= self.__upload_progress)
+                if DUMP_CHAT:= config_dict['DUMP_CHAT']:   
+                    self.__sent_msg = await self.client.send_document(
+                        chat_id=DUMP_CHAT,
+                        document=up_path,
+                        caption=cap,
+                        thumb= thumb_path,
+                        disable_notification=True,
+                        progress=self.__upload_progress)
+                else:
+                    self.__sent_msg= await self.__sent_msg.reply_document(
+                        document= up_path, 
+                        caption= cap,
+                        quote=True,
+                        thumb= thumb_path,
+                        disable_notification=True,
+                        progress= self.__upload_progress)
         except FloodWait as f:
             LOGGER.warning(str(f))
             await sleep(f.value)
@@ -158,14 +197,7 @@ class TelegramUploader():
             self.__thumb = None
 
     async def __msg_to_reply(self):
-        if DUMP_CHAT is not None:
-            if self.__listener.isPrivate:
-                msg = self.__listener.message.text
-            else:
-                msg = self.__listener.message.link
-            self.__sent_msg = await self.client.send_message(DUMP_CHAT, msg, disable_web_page_preview=True)
-        else:
-            self.__sent_msg = await self.client.get_messages(self.__listener.message.chat.id, self.__listener.uid)
+        self.__sent_msg = await self.client.get_messages(self.__listener.message.chat.id, self.__listener.uid)
 
     @property
     def speed(self):

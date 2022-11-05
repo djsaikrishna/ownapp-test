@@ -1,8 +1,7 @@
 
 from bot.helper.ext_utils.human_format import get_readable_file_size
-from bot.helper.ext_utils.var_holder import update_rc_user_var
+from bot.helper.ext_utils.var_holder import update_rclone_var
 
-folder_icon= "📁"
 
 class Menus:
     LEECH= "leechmenu"
@@ -24,10 +23,10 @@ def rcloneListNextPage(list_info, offset= 0, max_results=10):
 
     return next_list_info, next_offset
 
-def rcloneListButtonMaker(result_list, buttons, menu_type, callback, user_id, is_second_menu= False):
+def rcloneListButtonMaker(result_list, buttons, menu_type, callback, user_id, is_second_menu=False):
     for index, dir in enumerate(result_list):
         path = dir["Path"]
-        update_rc_user_var(str(index), path, user_id)
+        update_rclone_var(str(index), path, user_id)
         size= dir['Size']
         size= get_readable_file_size(size)
         mime_type= dir['MimeType']
@@ -43,6 +42,6 @@ def rcloneListButtonMaker(result_list, buttons, menu_type, callback, user_id, is
                 file_action= "drive_second"   
          
         if mime_type == 'inode/directory': 
-            buttons.cbl_buildbutton(f"{folder_icon} {path}", data= f"{menu_type}^{callback}^{index}^{user_id}") 
+            buttons.cbl_buildbutton(f"📁 {path}", data= f"{menu_type}^{callback}^{index}^{user_id}") 
         else:
             buttons.cbl_buildbutton(f"[{size}] {path}", data= f"{menu_type}^{file_action}^{index}^True^{user_id}")

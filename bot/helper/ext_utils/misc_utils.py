@@ -3,7 +3,7 @@ from os import mkdir, path as ospath, remove as osremove, rename as osrename, ma
 from shutil import rmtree
 from bot.helper.ext_utils.zip_utils import get_path_size
 from magic import Magic
-from bot import BASE_URL, DOWNLOAD_DIR, EQUAL_SPLITS, LEECH_SPLIT_SIZE, LOGGER, TG_MAX_FILE_SIZE, WEB_PINCODE, aria2, get_client, status_dict, status_dict_lock
+from bot import config_dict, DOWNLOAD_DIR, LOGGER, OWNER_ID, TG_MAX_FILE_SIZE, aria2, get_client, status_dict, status_dict_lock
 from itertools import zip_longest
 from json import loads as jsnloads
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -74,11 +74,18 @@ def rename_file(path, new_name):
     return new_path
 
 def get_rclone_config(user_id):
-    path = ospath.join("users", str(user_id), "rclone.conf")      
-    if path is not None:
-        if ospath.exists(path):
-            return path
-    return None
+    if config_dict['MULTI_RCLONE_CONFIG']:
+        rc_path = ospath.join("users", str(user_id), "rclone.conf")  
+        if rc_path is not None:
+            if ospath.exists(rc_path):
+                return rc_path
+        return None
+    else:
+        rc_path = ospath.join("users", str(OWNER_ID), "rclone.conf")      
+        if rc_path is not None:
+            if ospath.exists(rc_path):
+                return rc_path
+        return None
 
 def get_readable_size(size):
     """Get size in readable format"""
@@ -95,8 +102,8 @@ def split_file(path, size, file_, dirpath, split_size, listener, start_time=0, i
     dirpath = f"{dirpath}/splited_files"
     if not ospath.exists(dirpath):
         mkdir(dirpath)
-    parts = ceil(size/LEECH_SPLIT_SIZE)
-    if EQUAL_SPLITS and not inLoop:
+    parts = ceil(size/config_dict['LEECH_SPLIT_SIZE'])
+    if config_dict['EQUAL_SPLITS'] and not inLoop:
         split_size = ceil(size/parts) + 1000
     if get_media_streams(path)[0]:
         duration = get_media_info(path)[0]
@@ -253,7 +260,8 @@ def bt_selection_buttons(id_: str):
             break
 
     buttons = ButtonMaker()
-    if WEB_PINCODE:
+    BASE_URL = config_dict['BASE_URL']
+    if config_dict['WEB_PINCODE']:
         buttons.url_buildbutton("Select Files", f"{BASE_URL}/app/files/{id_}")
         buttons.cb_buildbutton("Pincode", f"btsel pin {gid} {pincode}")
     else:
@@ -279,12 +287,22 @@ class ButtonMaker:
     def __init__(self):
         self.first_button = []
         self.second_button= []
+        self.__header_button = []
+        self.__footer_button = []
+        self.__footer_second_button= []
 
     def url_buildbutton(self, key, link):
         self.first_button.append(InlineKeyboardButton(text = key, url = link))
 
-    def cb_buildbutton(self, key, data):
-        self.first_button.append(InlineKeyboardButton(text = key, callback_data = data))
+    def cb_buildbutton(self, key, data, position= None):
+        if not position:
+            self.first_button.append(InlineKeyboardButton(text = key, callback_data = data))
+        elif position == 'header':
+            self.__header_button.append(InlineKeyboardButton(text = key, callback_data = data))
+        elif position == 'footer':
+            self.__footer_button.append(InlineKeyboardButton(text = key, callback_data = data))
+        elif position == 'footer_second':
+            self.__footer_second_button.append(InlineKeyboardButton(text = key, callback_data = data))    
 
     def cbl_buildbutton(self, key, data):
         self.first_button.append([InlineKeyboardButton(text = key, callback_data = data)])
@@ -305,7 +323,16 @@ class ButtonMaker:
                     InlineKeyboardButton(text = third_text, callback_data = third_callback)])
 
     def build_menu(self, n_cols):
-        menu = [self.first_button[i:i + n_cols] for i in range(0, len(self.first_button), n_cols)]
+        menu = [self.first_button[i: i + n_cols] for i in range(0, len(self.first_button), n_cols)]
+        if self.__header_button:
+            menu.insert(0, self.__header_button)
+        if self.__footer_button:
+            if len(self.__footer_button) > 8:
+                [menu.append(self.__footer_button[i:i + 8]) for i in range(0, len(self.__footer_button), 8)]
+            else:
+                menu.append(self.__footer_button)
+        if self.__footer_second_button:
+            menu.append(self.__footer_second_button)
         return InlineKeyboardMarkup(menu)
 
 

@@ -8,7 +8,7 @@ from asyncio import sleep
 from copy import deepcopy
 from pyrogram.handlers import CallbackQueryHandler, MessageHandler
 from pyrogram.filters import regex, command
-from bot import DB_URI, LOGGER, RSS_CHAT_ID, RSS_COMMAND, RSS_DELAY, Bot, rss_dict
+from bot import DB_URI, LOGGER, RSS_DELAY, bot, rss_dict, config_dict
 from bot.helper.ext_utils.bot_commands import BotCommands
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.ext_utils.filters import CustomFilters
@@ -114,7 +114,7 @@ async def rss_sub(client, message):
         except Exception as e:
             await sendMessage(str(e), message)
     except IndexError:
-        msg = f"Use this format to add feed url:\n/{BotCommands.RssSubCommand[0]} Title https://www.rss-url.com"
+        msg = f"Use this format to add feed url:\n/{BotCommands.RssSubCommand} Title https://www.rss-url.com"
         msg += " f: 1080 or 720 or 144p|mkv or mp4|hevc (optional)\n\nThis filter will parse links that it's titles"
         msg += " contains `(1080 or 720 or 144p) and (mkv or mp4) and hevc` words. You can add whatever you want.\n\n"
         msg += "Another example: f:  1080  or 720p|.web. or .webrip.|hvec or x264. This will parse titles that contains"
@@ -230,7 +230,7 @@ async def rss_monitor():
                     url = rss_d.entries[feed_count]['links'][1]['href']
                 except IndexError:
                     url = rss_d.entries[feed_count]['link']
-                if RSS_COMMAND is not None:
+                if RSS_COMMAND := config_dict['RSS_COMMAND']:
                     feed_msg = f"{RSS_COMMAND} {url}"
                 else:
                     feed_msg = f"<b>Name: </b><code>{rss_d.entries[feed_count]['title'].replace('>', '').replace('<', '')}</code>\n\n"
@@ -247,20 +247,20 @@ async def rss_monitor():
             LOGGER.error(f"{e} Feed Name: {title} - Feed Link: {data['link']}")
             continue
 
-if DB_URI is not None and RSS_CHAT_ID is not None:
-    rss_list_handler = MessageHandler(rss_list, filters= command(BotCommands.RssListCommand))
-    rss_get_handler = MessageHandler(rss_get, filters= command(BotCommands.RssGetCommand))
-    rss_sub_handler = MessageHandler(rss_sub, filters= command(BotCommands.RssSubCommand))
-    rss_unsub_handler = MessageHandler(rss_unsub, filters= command(BotCommands.RssUnSubCommand))
-    rss_settings_handler = MessageHandler(rss_settings, filters= command(BotCommands.RssSettingsCommand))
+if DB_URI is not None and config_dict['RSS_CHAT_ID']:
+    rss_list_handler = MessageHandler(rss_list, filters= command(BotCommands.RssListCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+    rss_get_handler = MessageHandler(rss_get, filters= command(BotCommands.RssGetCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+    rss_sub_handler = MessageHandler(rss_sub, filters= command(BotCommands.RssSubCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+    rss_unsub_handler = MessageHandler(rss_unsub, filters= command(BotCommands.RssUnSubCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+    rss_settings_handler = MessageHandler(rss_settings, filters= command(BotCommands.RssSettingsCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
     rss_buttons_handler = CallbackQueryHandler(rss_set_update, filters= regex("rss"))
 
-    Bot.add_handler(rss_list_handler)
-    Bot.add_handler(rss_get_handler)
-    Bot.add_handler(rss_sub_handler)
-    Bot.add_handler(rss_unsub_handler)
-    Bot.add_handler(rss_settings_handler)
-    Bot.add_handler(rss_buttons_handler)
+    bot.add_handler(rss_list_handler)
+    bot.add_handler(rss_get_handler)
+    bot.add_handler(rss_sub_handler)
+    bot.add_handler(rss_unsub_handler)
+    bot.add_handler(rss_settings_handler)
+    bot.add_handler(rss_buttons_handler)
 
     scheduler = AsyncIOScheduler()
     rss_job = scheduler.add_job(rss_monitor, 'interval', id= "RSS", seconds=RSS_DELAY)

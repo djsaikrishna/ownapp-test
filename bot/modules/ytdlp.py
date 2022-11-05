@@ -3,7 +3,7 @@
 
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.filters import regex, command
-from bot import DOWNLOAD_DIR, Bot
+from bot import DOWNLOAD_DIR, bot
 from re import split as re_split
 from bot.helper.ext_utils.bot_commands import BotCommands
 from bot.helper.ext_utils.bot_utils import is_url
@@ -22,14 +22,15 @@ async def _ytdl(client, message, isZip= False, isLeech=False):
     mssg = message.text
     user_id = message.from_user.id
     msg_id = message.id
-
-    if await is_rclone_config(user_id, message) == False:
-        return
-
     if not isLeech:
-        if await is_rclone_drive(user_id, message) == False:
+        if await is_rclone_config(user_id, message):
+            pass
+        else:
+            return 
+        if await is_rclone_drive(user_id, message):
+            pass
+        else:
             return
-
     link = mssg.split()
     if len(link) > 1:
         link = link[1].strip()
@@ -257,14 +258,14 @@ async def ytdlleech(client, message):
 async def ytdlzipleech(client, message):
     await _ytdl(client, message, isZip= True, isLeech=True)    
 
-ytdl_handler = MessageHandler(ytdlmirror, filters= command(BotCommands.YtdlMirrorCommand))
-ytdl_leech_handler = MessageHandler(ytdlleech, filters= command(BotCommands.YtdlLeechCommand))
-ytdl_zipmirror_handler = MessageHandler(ytdlzipmirror, filters= command(BotCommands.YtdlZipMirrorCommand))
-ytdl_zipleech_handler = MessageHandler(ytdlzipleech, filters= command(BotCommands.YtdlZipLeechCommand))
+ytdl_handler = MessageHandler(ytdlmirror, filters= command(BotCommands.YtdlMirrorCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+ytdl_leech_handler = MessageHandler(ytdlleech, filters= command(BotCommands.YtdlLeechCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+ytdl_zipmirror_handler = MessageHandler(ytdlzipmirror, filters= command(BotCommands.YtdlZipMirrorCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+ytdl_zipleech_handler = MessageHandler(ytdlzipleech, filters= command(BotCommands.YtdlZipLeechCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
 quality_handler = CallbackQueryHandler(select_format, filters= regex("qu"))
 
-Bot.add_handler(ytdl_handler)
-Bot.add_handler(ytdl_leech_handler)
-Bot.add_handler(ytdl_zipmirror_handler)
-Bot.add_handler(ytdl_zipleech_handler)
-Bot.add_handler(quality_handler)
+bot.add_handler(ytdl_handler)
+bot.add_handler(ytdl_leech_handler)
+bot.add_handler(ytdl_zipmirror_handler)
+bot.add_handler(ytdl_zipleech_handler)
+bot.add_handler(quality_handler)
