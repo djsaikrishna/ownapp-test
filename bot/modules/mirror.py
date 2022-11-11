@@ -6,7 +6,6 @@ from bot import DOWNLOAD_DIR, bot
 from asyncio import TimeoutError, sleep
 from bot import bot, DOWNLOAD_DIR, botloop, config_dict
 from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup
 from re import match as re_match, split as re_split
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram import filters
@@ -19,6 +18,7 @@ from bot.helper.ext_utils.message_utils import deleteMessage, sendMarkup, sendMe
 from bot.helper.ext_utils.misc_utils import ButtonMaker, get_readable_size
 from bot.helper.ext_utils.rclone_utils import is_rclone_config, is_rclone_drive
 from bot.helper.mirror_leech_utils.download_utils.aria2_download import add_aria2c_download
+from bot.helper.mirror_leech_utils.download_utils.gd_downloader import add_gd_download
 from bot.helper.mirror_leech_utils.download_utils.mega_download import MegaDownloader
 from bot.helper.mirror_leech_utils.download_utils.qbit_downloader import add_qb_torrent
 from bot.helper.mirror_leech_utils.download_utils.telegram_downloader import TelegramDownloader
@@ -128,10 +128,10 @@ async def mirror_leech(client, message, isZip=False, extract=False, isLeech=Fals
                     file_name= file.file_name
                     size= get_readable_size(file.file_size)
                     header_msg = f"Which name do you want to use?\n\n<b>Name</b>: <code>{file_name}</code>\n\n<b>Size</b>: <code>{size}</code>"
-                    buttons.dbuildbutton("📄 By default", f'mirrormenu^default^{message_id}',
-                                         "📝 Rename", f'mirrormenu^rename^{message_id}')
-                    buttons.cbl_buildbutton("✘ Close Menu", f"mirrormenu^close^{message_id}")
-                    menu_msg= await sendMarkup(header_msg, message, reply_markup= InlineKeyboardMarkup(buttons.first_button))
+                    buttons.cb_buildbutton("📄 By default", f'mirrormenu^default^{message_id}')
+                    buttons.cb_buildbutton("📝 Rename", f'mirrormenu^rename^{message_id}')
+                    buttons.cb_buildbutton("✘ Close Menu", f"mirrormenu^close^{message_id}", 'footer')
+                    menu_msg= await sendMarkup(header_msg, message, reply_markup= buttons.build_menu(2))
                     listener_dict[message_id] = [listener, file, menu_msg, user_id]
                 return
             else:
@@ -192,8 +192,7 @@ Number should be always before |newname or pswd:
                 else:
                     return await sendMessage(tag + " " + error, message)
     if is_gdrive_link(link):
-        gmsg = f"Use /{BotCommands.CloneCommand} to clone Google Drive file/folder\n\n"
-        await sendMessage(gmsg, message)      
+        await add_gd_download(link, f'{DOWNLOAD_DIR}{listener.uid}', listener, name)   
     elif is_mega_link(link):
         if config_dict['MEGA_API_KEY']:
             botloop.create_task(MegaDownloader(link, listener).execute(path= f'{DOWNLOAD_DIR}{listener.uid}'))   
@@ -260,9 +259,10 @@ async def mirror_menu(client, query):
                     await tg_down.download() 
         finally:
             await question.delete()
+            
 
     elif cmd[1] == "close":
-        await query.answer("Closed")
+        await query.answer()
         await message.delete()
         return
 
