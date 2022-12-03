@@ -60,7 +60,7 @@ async def editMessage(text: str, message, reply_markup=None):
         return str(e)
 
 async def sendRss(text: str):
-    if rss_session is None:
+    if not rss_session:
         try:
             return await bot.send_message(config_dict['RSS_CHAT_ID'], text, disable_web_page_preview=True)
         except FloodWait as e:
@@ -153,7 +153,7 @@ async def sendStatusMessage(msg):
             Interval.append(setInterval(config_dict['STATUS_UPDATE_INTERVAL'], update_all_messages))
 
 async def auto_delete_message(cmd_message, bot_message):
-        await sleep(20)
+        await sleep(15)
         try:
             # Skip if None is passed meaning we don't want to delete bot or cmd message
             await deleteMessage(cmd_message)

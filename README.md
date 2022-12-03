@@ -1,18 +1,18 @@
 
-# An Rclone Telegram bot to transfer to and from many clouds
+An Rclone Mirror-Leech Telegram Bot to transfer to and from many clouds. Based on [mirror-leech-telegram-bot](https://github.com/anasty17/mirror-leech-telegram-bot) with rclone support added, and other features and changes from base code.
 
 ## Features:
 
 ### qBittorrent
 - Qbittorrent support for torrent and magnets
 - Select files from Torrent before downloading 
-- Edit Global Options from bot settings
+- Edit global options from bot settings
 
 ### Aria2c
 - Aria support for direct download links
 - Netrc support
 - Direct link authentication from bot
-- Edit Global Options from bot settings
+- Edit global options from bot settings
 
 ### Rclone
 - Copy file/folder from cloud to cloud
@@ -21,8 +21,10 @@
 - Telegram Navigation Button Menus to interact with cloud
 - File Manager: size, mkdir, delete, dedupe and rename
 - Service Accounts support with automatic switching
-- Serve remote as http or webdav index
-- Clean remote trash
+- Serve cloud as http or webdav index
+- Sync clouds
+- Search files on cloud
+- Clean cloud trash
 - View storage info 
 
 ### Mirror
@@ -30,6 +32,7 @@
 - Link/Torrent/Magnets/Mega to cloud 
 - Renaming for Telegram files
 - Files in batch from Telegram restricted channels
+- Queue system
 
 ### Leech
 - Link/Torrent/Magnets/Mega to Telegram 
@@ -51,20 +54,22 @@
 - Extract rar, zip and 7z with or without password
 
 ### Database
-- SQL Database
-- Save rclone.conf and token.pickle files on db
-- Save user leech settings(thumbnails, sudo and allowed users, etc) on db
+- Mongo Database
+- Save owner settings
+- Save user settings, including thumbnails.
+- Save private files (rclone.conf, token.pickle, etc)
+- Save RSS last recorded data
 
 ### RSS
 - Rss feed with filter support
 
 ### Others
-- Load/change token.pickle and rclone.conf from bot
-- Change most of the config variables from bot
+- Load and overwrite token.pickle, rclone.conf, config.env and accounts.zip from bot
+- Edit most of the config variables from bot
 
 ### From Other Repositories
 - Search on torrents with Torrent Search API or with variable plugins using qBittorrent search engine
-- SQL Database support
+- Mongo Database support
 - Ytdl support
 - Docker support
 - Extensions Filter for the files to be uploaded/cloned
@@ -89,31 +94,30 @@
 mirror - Mirror to selected cloud 
 unzipmirror - Mirror and extract to cloud 
 zipmirror - Mirror and zip to cloud 
+multizipmirror - Mirror and zip multiple files to cloud 
 mirrorset - Select cloud/folder where to mirror
 mirrorbatch - Mirror Telegram files in batch to cloud 
-ytdlmirror - Mirror ytdlp supported link
-ytdlzipmirror- Mirror and zip ytdlp supported link
 leech - Leech from cloud to Telegram
 unzipleech - Leech and extract to Telegram 
 zipleech - Leech and zip to Telegram 
+multizipleech - Leech and zip multiple files to Telegram 
 leechbatch - Leech Telegram files in batch to Telegram 
+ytdl - Mirror ytdlp supported link
+ytdlzip- Mirror and zip ytdlp supported link
 ytdlleech - Leech yt-dlp supported link
 ytdlzipleech - Leech and zip yt-dlp supported link
 myfiles - File manager
-clone - Clone gdrive file/folder from link
+config - Bot config files
 copy - Copy from cloud to cloud
-config - Load config files
+clone - Clone gdrive link file/folder 
 usetting - User settings
 ownsetting - Owner settings
-rsslist - List all subscribed rss feed 
-rssget - Get specific No. of links from specific rss feed
-rsssub - Subscribe new rss feed
-rssunsub - Unsubscribe rss feed by title
-rssset - Rss settings
+rss - Rss feed
 cleanup - Clean drive trash
 cancelall - Cancel all tasks
 storage - Drive details
-serve - serve remote as index
+serve - Serve remote as index
+sync - Sync two remotes
 search - Search for torrents
 status - Status message of tasks
 stats - Bot stats
@@ -123,7 +127,7 @@ ping - Ping bot
 restart - Restart bot
 ```
 
-## Deploy on VPS: 
+## How to deploy?
 
 1. **Installing requirements**
 
@@ -131,32 +135,44 @@ restart - Restart bot
 
         git clone https://github.com/Sam-Max/rclone-mirror-leech-telegram-bot rclonetgbot/ && cd rclonetgbot
 
- - Install Docker(skip this if deploying without docker).
+ - For Debian based distros
+```
+sudo apt install python3 python3-pip
+```
+Install Docker by following the [official Docker docs](https://docs.docker.com/engine/install/debian/)
 
-        sudo apt install snapd
-        sudo snap install docker
+- For Arch and it's derivatives:
+```
+sudo pacman -S docker python
+```
+
+- Install dependencies for running setup scripts:
+```
+pip3 install -r requirements-cli.txt
+```
 
 2. **Set up config file**
 
 - cp config_sample.env config.env 
 
-- Fill up variables:
+- Fill up fields: All values must be filled between quotes, even if `Int` or `Bool`.
 
-   - Mandatory variables:
+   - Mandatory Fields:
         - `API_ID`: get this from https://my.telegram.org. Don't put this in quotes
         - `API_HASH`: get this from https://my.telegram.org
         - `BOT_TOKEN`: The Telegram Bot Token (get from @BotFather)
         - `OWNER_ID`: your Telegram User ID (not username) of the owner of the bot
 
-   - Non mandatory variables:
+   - Optional Fields:
         - `DOWNLOAD_DIR`: The path to the local folder where the downloads will go
         - `SUDO_USERS`: Fill user_id of users whom you want to give sudo permission separated by spaces. `Str`
         - `ALLOWED_CHATS`: list of IDs of allowed chats who can use this bot separated by spaces `Str`
         - `AUTO_MIRROR`: For auto mirroring files sent to the bot. **NOTE**: If you add bot to group(not channel), you can also use this feature. Default is `False`. `Bool`
-        - `DATABASE_URL`: Your SQL Database URL. Follow this [Generate Database](https://github.com/anasty17/mirror-leech-telegram-bot/tree/master#generate-database) to generate database. Data that will be saved in Database: auth and sudo users, leech settings including thumbnails for each user. `Str`
+        - `DATABASE_URL`: Your Mongo Database URL (Connection string). Data will be saved in Database (auth and sudo users, owner and user setting, etc) `Str`
         - `CMD_INDEX`: index number that will be added at the end of all commands. `Str`
         - `STATUS_LIMIT`: No. of tasks shown in status message with buttons. **NOTE**: Recommended limit is `4` tasks. `Str`
         - `TORRENT_TIMEOUT`: Timeout of dead torrents downloading with qBittorrent
+        - `PARALLEL_TASKS`: Number of parallel tasks for queue system. `Str`
 
    - UPDATE
      - `UPSTREAM_REPO`: if your repo is private add your github repo link with format: `https://username:{githubtoken}@github.com/{username}/{reponame}`, so you can update your app from private repository on each restart. Get token from [Github settings](https://github.com/settings/tokens)
@@ -164,11 +180,12 @@ restart - Restart bot
     **NOTE**: If any change in docker or requirements you will need to deploy/build again with updated repo for changes to apply.
 
    - RCLONE
-     - `DEFAULT_REMOTE`: To set a default remote from your rclone config for mirroring (only for owner). `Str`
-     - `MULTI_RCLONE_CONFIG`: For using owner rclone config for all users or each user with their own rclone config. Default to False. `Bool` 
+     - `DEFAULT_OWNER_REMOTE`: default remote from your rclone config for mirror. (for owner) `Str`
+     - `MULTI_RCLONE_CONFIG`: For allowing the use of a global rclone config for all users (no sudo or owner affected) or each user with their own rclone config. Default to False. `Bool` 
+     - `DEFAULT_GLOBAL_REMOTE`: default remote from global rclone config for mirror. Use this when `MULTI_RCLONE_CONFIG` is `False` and if you loaded a global rclone config. `Str`
      - `USE_SERVICE_ACCOUNTS`: For enabling Service Accounts for rclone copy. Default to False. `Bool`.
      - `SERVICE_ACCOUNTS_REMOTE`= To set remote (teamdrive) from your rclone config with the service accounts added. `Str`. **Note**: teamdrive remote must have team_drive field with id
-     - `SERVER_SIDE_COPY`= For enabling or desabling rclone server side copy. Default to False. **NOTE**: if you get any error while copy set this to `False`. `Bool`
+     - `SERVER_SIDE`= For enabling or desabling rclone server side copy. Default to False. **NOTE**: if you get any error while copy set this to `False`. `Bool`
      - `SERVE_IP`= "Ip (public) of your vps where bot is running. `Str`
      - `SERVE_PORT`: Port to use for remote index. Default to `8080`. `Str`
      - `SERVE_USER`: User for remote index. Default to `admin`. `Str`
@@ -207,29 +224,24 @@ restart - Restart bot
    - TORRENT SEARCH
      - `SEARCH_API_LINK`: Search api app link. Get your api from deploying this [repository](https://github.com/Ryuk-me/Torrent-Api-py). `Str`
      - `SEARCH_LIMIT`: Search limit for search api, limit for each site. Default is zero. `Str`
-     - `SEARCH_PLUGINS`: List of qBittorrent search plugins (github raw links). `Str`
+     - `SEARCH_PLUGINS`: List of qBittorrent search plugins (github raw links). Add/Delete plugins as you wish. Main Source: [qBittorrent Search Plugins (Official/Unofficial)](https://github.com/qbittorrent/search-plugins/wiki/Unofficial-search-plugins).`Str`
      - Supported Sites:
      >1337x, Piratebay, Nyaasi, Torlock, Torrent Galaxy, Zooqle, Kickass, Bitsearch, MagnetDL, Libgen, YTS, Limetorrent, TorrentFunk, Glodls, TorrentProject and YourBittorrent
 
  
-3. **Deploying on VPS Using Docker**
+3. **Deploying with Docker**
 
-- Start Docker daemon (skip if already running), if installed by snap then use 2nd command:
+- Start Docker daemon (skip if already running)
     
         sudo dockerd
-        sudo snap start docker
-
-     Note: If not started or not starting, run the command below then try to start.
-
-        sudo apt install docker.io
 
 - Build Docker image:
 
-        sudo docker build . -t rclonetg-bot 
+        sudo docker build . -t rcmltb 
 
 - Run the image:
 
-        sudo docker run rclonetg-bot 
+        sudo docker run -p 80:80 rcmltb
 
 - To stop the image:
 
@@ -244,7 +256,7 @@ restart - Restart bot
 
         sudo docker image prune -a
 
-4. **Deploying on VPS Using docker-compose**
+4. **Deploying using docker-compose**
 
 **NOTE**: If you want to use port other than 80, change it in docker-compose.yml
 
@@ -271,23 +283,12 @@ sudo docker-compose start
 
 ## Generate Database
 
-**1. Using Railway**
-- Go to [railway](https://railway.app) and create account
-- Start new project
-- Press on `Provision PostgreSQL`
-- After creating database press on `PostgresSQL`
-- Go to `Connect` column
-- Copy `Postgres Connection URL` and fill `DATABASE_URL` variable with it
-
-**2. Using ElephantSQL**
-- Go to [elephantsql](https://elephantsql.com) and create account
-- Hit `Create New Instance`
-- Follow the further instructions in the screen
-- Hit `Select Region`
-- Hit `Review`
-- Hit `Create instance`
-- Select your database name
-- Copy your database url, and fill `DATABASE_URL` variable with it
+1. Go to `https://mongodb.com/` and sign-up.
+2. Create Shared Cluster.
+3. Press on `Database` under `Deployment` Header, your created cluster will be there.
+5. Press on connect, choose `Allow Acces From Anywhere` and press on `Add IP Address` without editing the ip, then create user.
+6. After creating user press on `Choose a connection`, then press on `Connect your application`. Choose `Driver` **python** and `version` **3.6 or later**.
+7. Copy your `connection string` and replace `<password>` with the password of your user, then press close.
 
 ------
 

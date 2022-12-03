@@ -1,5 +1,5 @@
 from time import time
-from bot import Interval, QbInterval, bot, botloop
+from bot import Interval, QbInterval, bot, botloop, app, bot
 from os import path as ospath, remove as osremove, execl as osexecl
 from pyrogram.filters import command
 from pyrogram.handlers import MessageHandler
@@ -10,7 +10,7 @@ from bot.helper.ext_utils.filters import CustomFilters
 from bot.helper.ext_utils.message_utils import editMessage, sendMarkup, sendMessage
 from bot.helper.ext_utils.misc_utils import ButtonMaker, clean_all, start_cleanup
 from bot.helper.ext_utils import db_handler
-from bot.modules import batch, cancel, config, copy, leech, mirror, mirrorset, myfilesset, owner_settings, search, myfiles, stats, status, clone, storage, cleanup, user_settings, ytdlp, shell, bt_select, rss, serve
+from bot.modules import batch, cancel, config, copy, leech, mirror, mirrorset, myfilesset, owner_settings, search, myfiles, stats, status, clone, storage, cleanup, user_settings, ytdlp, shell, bt_select, rss, serve, sync
 
 
 print("Successfully deployed!")
@@ -60,9 +60,12 @@ async def main():
     if ospath.isfile(".restartmsg"):
         with open(".restartmsg") as f:
             chat_id, msg_id = map(int, f)
-        await bot.edit_message_text(chat_id, msg_id, "Restarted successfully!")     
+        try:
+            await bot.edit_message_text(chat_id, msg_id, "Restarted successfully!")  
+        except:
+            pass   
         osremove(".restartmsg")
-
+            
     start_handler = MessageHandler(start, filters= command(BotCommands.StartCommand))
     restart_handler = MessageHandler(restart, filters= command(BotCommands.RestartCommand) & (CustomFilters.owner_filter | CustomFilters.sudo_filter))
     log_handler = MessageHandler(get_log, filters= command(BotCommands.LogsCommand) & (CustomFilters.owner_filter | CustomFilters.sudo_filter))
@@ -73,6 +76,10 @@ async def main():
     bot.add_handler(log_handler)
     bot.add_handler(ping_handler)
 
+bot.start()
+if app is not None:
+    app.start()
+    
 botloop.run_until_complete(main())
 botloop.run_forever()
 

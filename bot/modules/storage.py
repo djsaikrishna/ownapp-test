@@ -8,9 +8,9 @@ from bot import LOGGER, bot
 from bot.helper.ext_utils.bot_commands import BotCommands
 from bot.helper.ext_utils.filters import CustomFilters
 from bot.helper.ext_utils.human_format import get_readable_file_size
-from bot.helper.ext_utils.rclone_utils import is_rclone_config
+from bot.helper.ext_utils.rclone_utils import get_rclone_config, is_rclone_config
 from bot.helper.ext_utils.message_utils import editMarkup, sendMarkup, sendMessage
-from bot.helper.ext_utils.misc_utils import ButtonMaker, get_rclone_config
+from bot.helper.ext_utils.misc_utils import ButtonMaker
 
 async def handle_storage(client, message):
      if await is_rclone_config(message.from_user.id, message):
@@ -70,7 +70,7 @@ async def rclone_about(message, query, drive_name, user_id):
           return await sendMessage(f'Error: {err}', message)
      info = loads(stdout)
      if len(info) == 0:
-          return await query.answer("Team Drive with Unlimited Storage")
+          return await query.answer("Team Drive with Unlimited Storage", show_alert=True)
      result_msg= "<b>🗂 Storage Details</b>\n"
      try:
           used = get_readable_file_size(info['used'])

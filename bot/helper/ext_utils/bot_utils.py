@@ -7,7 +7,7 @@ from math import ceil
 from re import match as re_match, findall as re_findall, IGNORECASE, compile
 from time import time
 from psutil import cpu_percent, disk_usage, virtual_memory
-from bot import DOWNLOAD_DIR, status_dict_lock, status_dict, botUptime, config_dict
+from bot import DOWNLOAD_DIR, status_dict_lock, status_dict, botUptime, config_dict, user_data, m_queue
 from requests import head as rhead
 from threading import Event, Thread
 from urllib.request import urlopen
@@ -108,11 +108,12 @@ async def get_readable_message():
             msg += f"<b>Status: </b> {download.status()}"
             msg += f"\n<b>Name: </b><code>{escape(str(download.name()))}</code>"
             if download.status() not in [MirrorStatus.STATUS_SPLITTING, MirrorStatus.STATUS_SEEDING]:
-                if download.type() == TaskType.RCLONE:
+                if download.type() == TaskType.RCLONE or download.type() == TaskType.RCLONE_SYNC:
                     msg += f"\n{get_progress_bar_rclone(download.progress())} {download.progress()}%"
                     msg += f"\n<b>Processed:</b> {download.processed_bytes()}"
                 else:
                     msg += f"\n{get_progress_bar_string(download)} {download.progress()}"
+                    msg += f"\n<b>Queue:</b> {m_queue.qsize()}"
                     msg += f"\n<b>Processed:</b> {get_readable_file_size(download.processed_bytes())} of {download.size()}"
                 msg += f"\n<b>Speed:</b> {download.speed()} | <b>ETA:</b> {download.eta()}"
                 if hasattr(download, 'seeders_num'):
@@ -128,7 +129,10 @@ async def get_readable_message():
                 msg += f" | <b>Time: </b>{download.seeding_time()}"
             else:
                 msg += f"\n<b>Size: </b>{download.size()}"
-            msg += f"\n<code>/{BotCommands.CancelCommand} {download.gid()}</code>"
+            if download.status() == MirrorStatus.STATUS_SEEDING:
+                msg += f"\n<code>/{BotCommands.CancelCommand} {download.gid()}</code>"
+            else:
+                msg += f"\n<code>/{BotCommands.CancelCommand} {download.gid()}</code>"
             msg += "\n\n"
             if index == STATUS_LIMIT:
                 break
@@ -231,5 +235,8 @@ class setIntervalThreaded:
 def command_process(cmd):
     return compile(cmd, IGNORECASE)
 
-
-
+def update_user_ldata(id_, key, value):
+    if id_ in user_data:
+        user_data[id_][key] = value
+    else:
+        user_data[id_] = {key: value}

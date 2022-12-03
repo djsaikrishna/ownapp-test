@@ -2,9 +2,9 @@ from base64 import b64encode
 from os import path as ospath
 from time import time
 from requests import get
-from bot import DOWNLOAD_DIR, bot
-from asyncio import TimeoutError, sleep
-from bot import bot, DOWNLOAD_DIR, botloop, config_dict
+from bot import DOWNLOAD_DIR, LOGGER, PARALLEL_TASKS, bot
+from asyncio import Queue, TimeoutError, sleep
+from bot import bot, DOWNLOAD_DIR, botloop, config_dict, m_queue
 from pyrogram import filters
 from re import match as re_match, split as re_split
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
@@ -16,13 +16,13 @@ from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 from bot.helper.ext_utils.filters import CustomFilters
 from bot.helper.ext_utils.message_utils import deleteMessage, sendMarkup, sendMessage
 from bot.helper.ext_utils.misc_utils import ButtonMaker, get_readable_size
-from bot.helper.ext_utils.rclone_utils import is_rclone_config, is_rclone_drive
+from bot.helper.ext_utils.rclone_utils import is_rclone_config, is_remote_selected
 from bot.helper.mirror_leech_utils.download_utils.aria2_download import add_aria2c_download
 from bot.helper.mirror_leech_utils.download_utils.gd_downloader import add_gd_download
 from bot.helper.mirror_leech_utils.download_utils.mega_download import MegaDownloader
 from bot.helper.mirror_leech_utils.download_utils.qbit_downloader import add_qb_torrent
 from bot.helper.mirror_leech_utils.download_utils.telegram_downloader import TelegramDownloader
-from bot.helper.mirror_leech_utils.listener import MirrorLeechListener
+from bot.modules.listener import MirrorLeechListener
 
 
 listener_dict = {}
@@ -33,12 +33,15 @@ async def handle_mirror(client, message):
 async def handle_zip_mirror(client, message):
     await mirror_leech(client, message, isZip=True)
 
+async def handle_multizip_mirror(client, message):
+    await mirror_leech(client, message, multiZip=True)    
+
 async def handle_unzip_mirror(client, message):
     await mirror_leech(client, message, extract=True)
 
 # Source: https://github.com/anasty17/mirror-leech-telegram-bot/blob/master/bot/modules/mirror_leech.py
 # Adapted for asyncio and pyrogram and minor modifications
-async def mirror_leech(client, message, isZip=False, extract=False, isLeech=False):
+async def mirror_leech(client, message, isZip=False, extract=False, isLeech=False, multiZip=False):
     user_id= message.from_user.id
     message_id= message.id
     mesg = message.text.split('\n')
@@ -49,7 +52,7 @@ async def mirror_leech(client, message, isZip=False, extract=False, isLeech=Fals
             pass
         else: 
             return
-        if await is_rclone_drive(user_id, message):
+        if await is_remote_selected(user_id, message):
             pass
         else: 
             return
@@ -111,8 +114,25 @@ async def mirror_leech(client, message, isZip=False, extract=False, isLeech=Fals
                 if is_url(reply_text) or is_magnet(reply_text):     
                         link = reply_message.text.strip() 
             elif file.mime_type != "application/x-bittorrent":
-                if multi:
-                    botloop.create_task(TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{listener.uid}/', name).download()) 
+                if multi and multiZip:
+                    tg_down= TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{user_id}/multizip/', name, multi, multi_zip=multiZip)
+                    await tg_down.download() 
+                    if multi > 1:
+                        await sleep(4)
+                        nextmsg = await client.get_messages(message.chat.id, message.reply_to_message.id + 1)
+                        msg = message.text.split(maxsplit=mi+1)
+                        msg[mi] = f"{multi - 1}"
+                        nextmsg = await sendMessage(" ".join(msg), nextmsg)
+                        nextmsg = await client.get_messages(message.chat.id, nextmsg.id)
+                        nextmsg.from_user.id = message.from_user.id
+                        await sleep(4)
+                        await mirror_leech(client, nextmsg, isLeech=isLeech, multiZip=multiZip)
+                elif multi:
+                    tg_down= TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{listener.uid}/', name)
+                    if PARALLEL_TASKS:    
+                        await m_queue.put(tg_down)
+                    else:
+                        botloop.create_task(tg_down.download()) 
                     if multi > 1:
                         await sleep(4)
                         nextmsg = await client.get_messages(message.chat.id, message.reply_to_message.id + 1)
@@ -138,7 +158,15 @@ async def mirror_leech(client, message, isZip=False, extract=False, isLeech=Fals
                 link = await client.download_media(file)
     
     if not is_url(link) and not is_magnet(link):
-        help_msg = '''         
+        if multiZip:
+             help_msg = '''
+<b>Multi zip by replying to first file:</b>
+
+<code>/cmd</code> 5(number of files)
+Number should be always before | zipname
+             '''
+        else:
+             help_msg = '''         
 <code>/cmd</code> link |newname pswd: xx(zip/unzip)
 
 <b>By replying</b>   
@@ -155,8 +183,7 @@ async def mirror_leech(client, message, isZip=False, extract=False, isLeech=Fals
 <b>Multi links by replying to first link/file:</b>
 <code>/cmd</code> 5(number of links/files)
 Number should be always before |newname or pswd:
-
-'''
+                '''
         return await sendMessage(help_msg, message)
 
     listener= MirrorLeechListener(message, tag, user_id, isZip=isZip, extract=extract, pswd=pswd, select=select, isLeech=isLeech)
@@ -166,7 +193,7 @@ Number should be always before |newname or pswd:
         content_type = get_content_type(link)
         if content_type is None or re_match(r'text/html|text/plain', content_type):
             try:
-                link = direct_link_generator(link)
+                link = await direct_link_generator(link)
             except DirectDownloadLinkException as e:
                 if str(e).startswith('ERROR:'):
                     return await sendMessage(str(e), message)
@@ -235,12 +262,14 @@ async def mirror_menu(client, query):
 
     if int(info[-1]) != user_id:
         return await query.answer("This menu is not for you!", show_alert=True)
-
     elif cmd[1] == "default" :
-       await deleteMessage(info[2]) 
-       tg_down= TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{listener.uid}/', '')
-       await tg_down.download() 
-
+        await deleteMessage(info[2]) 
+        tg_down= TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{listener.uid}/', '')
+        if PARALLEL_TASKS:    
+            await m_queue.put(tg_down)
+            await query.answer()
+        else:
+            await tg_down.download() 
     elif cmd[1] == "rename": 
         question= await client.send_message(message.chat.id, text= "Send the new name, /ignore to cancel")
         try:
@@ -256,23 +285,23 @@ async def mirror_menu(client, query):
                     name = response.text.strip()
                     await deleteMessage(info[2]) 
                     tg_down= TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{listener.uid}/', name)
-                    await tg_down.download() 
+                    if PARALLEL_TASKS:    
+                        await query.answer()
+                        await m_queue.put(tg_down)
+                    else:
+                        await tg_down.download() 
         finally:
             await question.delete()
-            
-
-    elif cmd[1] == "close":
+    else:
         await query.answer()
         await message.delete()
-        return
-
     del listener_dict[msg_id]
 
 async def handle_auto_mirror(client, message):
     user_id= message.from_user.id
     if await is_rclone_config(user_id, message) == False:
         return
-    if await is_rclone_drive(user_id, message) == False:
+    if await is_remote_selected(user_id, message) == False:
         return
     file = message.document or message.video or message.audio or message.photo or None
     tag = f"@{message.from_user.username}"
@@ -280,11 +309,26 @@ async def handle_auto_mirror(client, message):
         if file.mime_type != "application/x-bittorrent":
             listener= MirrorLeechListener(message, tag, user_id)
             tg_down= TelegramDownloader(file, client, listener, f'{DOWNLOAD_DIR}{listener.uid}/', '')
-            await tg_down.download()  
+            if PARALLEL_TASKS:    
+                await m_queue.put(tg_down)
+            else:
+                await tg_down.download()  
+
+async def worker(queue: Queue):
+    while True:
+        tg_down = await queue.get()
+        await tg_down.download()
+        
+# Create worker tasks to process the queue concurrently.        
+if PARALLEL_TASKS:
+    LOGGER.info("Creating worker tasks")
+    for i in range(PARALLEL_TASKS):
+        task = botloop.create_task(worker(m_queue))
 
 mirror_handler = MessageHandler(handle_mirror,filters=filters.command(BotCommands.MirrorCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
 zip_mirror_handler = MessageHandler(handle_zip_mirror,filters=filters.command(BotCommands.ZipMirrorCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
 unzip_mirror_handler = MessageHandler(handle_unzip_mirror,filters=filters.command(BotCommands.UnzipMirrorCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
+multizip_mirror_handler = MessageHandler(handle_multizip_mirror, filters=filters.command(BotCommands.MultiZipMirrorCommand) & (CustomFilters.user_filter | CustomFilters.chat_filter))
 auto_mirror_handler = MessageHandler(handle_auto_mirror, filters= filters.video | filters.document | filters.audio | filters.photo)
 mirror_menu_cb = CallbackQueryHandler(mirror_menu, filters=filters.regex("mirrormenu"))
 
@@ -292,6 +336,7 @@ if config_dict['AUTO_MIRROR']:
     bot.add_handler(auto_mirror_handler)
 bot.add_handler(mirror_handler)   
 bot.add_handler(zip_mirror_handler)
+bot.add_handler(multizip_mirror_handler)
 bot.add_handler(unzip_mirror_handler)
 bot.add_handler(mirror_menu_cb)
 
