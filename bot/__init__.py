@@ -136,6 +136,12 @@ if len(STATUS_UPDATE_INTERVAL) == 0:
 else:
     STATUS_UPDATE_INTERVAL = int(STATUS_UPDATE_INTERVAL)
 
+AUTO_DELETE_MESSAGE_DURATION = environ.get('AUTO_DELETE_MESSAGE_DURATION', '')
+if len(AUTO_DELETE_MESSAGE_DURATION) == 0:
+    AUTO_DELETE_MESSAGE_DURATION = 30
+else:
+    AUTO_DELETE_MESSAGE_DURATION = int(AUTO_DELETE_MESSAGE_DURATION)
+
 PARALLEL_TASKS = environ.get('PARALLEL_TASKS', '')
 PARALLEL_TASKS = "" if len(PARALLEL_TASKS) == 0 else int(PARALLEL_TASKS)
 
@@ -144,9 +150,6 @@ AS_DOCUMENT = AS_DOCUMENT.lower() == 'true'
 
 AUTO_MIRROR= environ.get('AUTO_MIRROR', '')  
 AUTO_MIRROR= AUTO_MIRROR.lower() == 'true'
-
-DUMP_CHAT = environ.get('DUMP_CHAT', '')
-DUMP_CHAT= '' if len(DUMP_CHAT) == 0 else int(DUMP_CHAT)
 
 UPTOBOX_TOKEN = environ.get('UPTOBOX_TOKEN', '')
 if len(UPTOBOX_TOKEN) == 0:
@@ -195,6 +198,9 @@ SERVICE_ACCOUNTS_REMOTE = environ.get('SERVICE_ACCOUNTS_REMOTE', '')
 
 MULTI_RCLONE_CONFIG = environ.get('MULTI_RCLONE_CONFIG', '')
 MULTI_RCLONE_CONFIG = MULTI_RCLONE_CONFIG.lower() == 'true' 
+
+REMOTE_SELECTION = environ.get('REMOTE_SELECTION', '')
+REMOTE_SELECTION = REMOTE_SELECTION.lower() == 'true'
 
 SERVER_SIDE = environ.get('SERVER_SIDE', '')
 SERVER_SIDE = SERVER_SIDE.lower() == 'true' 
@@ -260,19 +266,30 @@ if len(MEGA_EMAIL_ID) == 0 or len(MEGA_PASSWORD) == 0:
     MEGA_EMAIL_ID = ''
     MEGA_PASSWORD = ''
 
+LEECH_LOG = environ.get('LEECH_LOG', '')
+if len(LEECH_LOG) != 0:
+    aid = LEECH_LOG.split()
+    LEECH_LOG = [int(id_.strip()) for id_ in aid]
+
+BOT_PM = environ.get('BOT_PM', '')
+BOT_PM = BOT_PM.lower() == 'true'
+
 bot = Client(name="pyrogram", api_id=TELEGRAM_API_ID, api_hash=TELEGRAM_API_HASH, bot_token=BOT_TOKEN)
 Conversation(bot) 
 LOGGER.info("Creating Pyrogram client")
 
 IS_PREMIUM_USER = False
 USER_SESSION_STRING = environ.get('USER_SESSION_STRING', '')
-if len(USER_SESSION_STRING) == 0:
-    app = None
-else:
+app= None
+if len(USER_SESSION_STRING) != 0:
     LOGGER.info("Creating Pyrogram client from USER_SESSION_STRING")
-    app = Client(name="pyrogram_session", api_id=TELEGRAM_API_ID, api_hash=TELEGRAM_API_HASH, session_string=USER_SESSION_STRING)
+    app = Client(name="pyrogram_session", api_id=TELEGRAM_API_ID, api_hash=TELEGRAM_API_HASH, session_string=USER_SESSION_STRING, no_updates=True)
     with app:
-        IS_PREMIUM_USER = app.me.is_premium
+        if IS_PREMIUM_USER := app.me.is_premium:
+            if not LEECH_LOG:
+                LOGGER.error("You must set LEECH_LOG for uploads. Exiting Now...")
+                app.stop()
+                exit(1)
 
 RSS_USER_SESSION_STRING = environ.get('RSS_USER_SESSION_STRING', '')
 if len(RSS_USER_SESSION_STRING) == 0:
@@ -291,12 +308,13 @@ else:
 if not config_dict:
     config_dict = {'AS_DOCUMENT': AS_DOCUMENT,
                    'ALLOWED_CHATS': ALLOWED_CHATS,
+                   'AUTO_DELETE_MESSAGE_DURATION': AUTO_DELETE_MESSAGE_DURATION,
                    'AUTO_MIRROR': AUTO_MIRROR,
                    'BASE_URL': BASE_URL,
                    'BOT_TOKEN': BOT_TOKEN,
+                   'BOT_PM': BOT_PM,
                    'CMD_INDEX': CMD_INDEX,
                    'DATABASE_URL': DATABASE_URL,
-                   'DUMP_CHAT': DUMP_CHAT,
                    'DEFAULT_OWNER_REMOTE': DEFAULT_OWNER_REMOTE,
                    'DEFAULT_GLOBAL_REMOTE':DEFAULT_GLOBAL_REMOTE,
                    'EQUAL_SPLITS': EQUAL_SPLITS,
@@ -304,12 +322,14 @@ if not config_dict:
                    'GDRIVE_FOLDER_ID': GDRIVE_FOLDER_ID,
                    'IS_TEAM_DRIVE': IS_TEAM_DRIVE,
                    'LEECH_SPLIT_SIZE': LEECH_SPLIT_SIZE,
+                   'LEECH_LOG': LEECH_LOG,
                    'MEGA_API_KEY': MEGA_API_KEY,
                    'MEGA_EMAIL_ID': MEGA_EMAIL_ID,
                    'MEGA_PASSWORD': MEGA_PASSWORD,
                    'MULTI_RCLONE_CONFIG': MULTI_RCLONE_CONFIG, 
                    'OWNER_ID': OWNER_ID,
                    'PARALLEL_TASKS': PARALLEL_TASKS,
+                   'REMOTE_SELECTION': REMOTE_SELECTION,
                    'RSS_USER_SESSION_STRING': RSS_USER_SESSION_STRING,
                    'RSS_CHAT_ID': RSS_CHAT_ID,
                    'RSS_COMMAND': RSS_COMMAND,

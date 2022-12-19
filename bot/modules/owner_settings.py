@@ -140,7 +140,7 @@ async def ownerset_callback(client, callback_query):
 
     if data[1] == "env":
         if data[2] == "editenv" and STATE == 'edit':
-            if data[3] in ['PARALLEL_TASKS', 'SUDO_USERS', 'SERVE_USER', 'SERVE_PASS', 'SERVE_IP', 'SERVE_PORT', 'ALLOWED_CHATS', 'RSS_USER_SESSION_STRING', 'USER_SESSION_STRING', 'AUTO_MIRROR',  'RSS_DELAY', 'CMD_INDEX', 
+            if data[3] in ['PARALLEL_TASKS', 'SUDO_USERS', 'SERVE_USER', 'LEECH_LOG', 'SERVE_PASS', 'SERVE_IP', 'SERVE_PORT', 'ALLOWED_CHATS', 'RSS_USER_SESSION_STRING', 'USER_SESSION_STRING', 'AUTO_MIRROR',  'RSS_DELAY', 'CMD_INDEX', 
                           'TELEGRAM_API_HASH', 'TELEGRAM_API_ID', 'BOT_TOKEN', 'OWNER_ID', 'DOWNLOAD_DIR', 'DATABASE_URL']:
                 await query.answer(text='Restart required for this to apply!', show_alert=True)
             else:
@@ -441,8 +441,6 @@ async def start_env_listener(client, query, user_id, key):
                             value = f'{value}/'
                     elif key == 'LEECH_SPLIT_SIZE':
                         value = min(int(value), TG_MAX_FILE_SIZE)
-                    elif key == 'DUMP_CHAT':
-                        value = int(value)   
                     elif key == 'SERVER_PORT':
                         value = int(value)
                         srun(["pkill", "-9", "-f", "gunicorn"])
@@ -455,6 +453,9 @@ async def start_env_listener(client, query, user_id, key):
                             GLOBAL_EXTENSION_FILTER.append(x.strip().lower())
                     elif key == 'SEARCH_API_LINK':
                         initiate_search_tools()
+                    elif key == 'LEECH_LOG':
+                        aid = value.split()
+                        value = [int(id_.strip()) for id_ in aid]
                     config_dict[key] = value
                     await edit_menus(message, 'env')       
                     if DATABASE_URL:
