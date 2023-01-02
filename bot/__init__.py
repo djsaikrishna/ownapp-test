@@ -1,10 +1,10 @@
-__version__ = "3.1"
+__version__ = "4.0"
 __author__ = "Sam-Max"
 
 from asyncio import Lock
 from asyncio import Queue
 from logging import getLogger, FileHandler, StreamHandler, INFO, basicConfig
-from os import environ, remove as osremove, path as ospath
+from os import environ, remove as osremove, path as ospath, makedirs as osmakedirs
 from threading import Thread
 from time import sleep, time
 from sys import exit
@@ -13,7 +13,6 @@ from pymongo import MongoClient
 from aria2p import API as ariaAPI, Client as ariaClient
 from qbittorrentapi import Client as qbitClient
 from subprocess import Popen, run as srun
-from megasdkrestclient import MegaSdkRestClient, errors
 from pyrogram import Client
 from bot.conv_pyrogram import Conversation
 from asyncio import get_event_loop
@@ -37,6 +36,8 @@ Interval = []
 QbInterval = []
 GLOBAL_EXTENSION_FILTER = ['.aria2']
 user_data = {}
+remotes_data = []
+leech_log = []
 aria2_options = {}
 qbit_options = {}
 
@@ -57,6 +58,16 @@ rss_dict = {}
 
 m_queue = Queue()
 l_queue = Queue()
+
+if ospath.exists('pyrogram.session'):
+    osremove('pyrogram.session')
+if ospath.exists('pyrogram.session-journal'):
+    osremove('pyrogram.session-journal')
+    
+if ospath.exists('rss_session.session'):
+    osremove('rss_session.session')
+if ospath.exists('rss_session.session-journal'):
+    osremove('rss_session.session-journal')
 
 BOT_TOKEN = environ.get('BOT_TOKEN', '')
 if len(BOT_TOKEN) == 0:
@@ -81,6 +92,9 @@ if DATABASE_URL:
         for key, value in pf_dict.items():
             if value:
                 file_ = key.replace('__', '.')
+                file_name = ospath.basename(file_)
+                if file_name == "rclone.conf" and not ospath.exists(file_):
+                    osmakedirs(ospath.dirname(file_))
                 with open(file_, 'wb+') as f:
                     f.write(value)
     if a2c_options := db.settings.aria2c.find_one({'_id': bot_id}):
@@ -151,6 +165,9 @@ AS_DOCUMENT = AS_DOCUMENT.lower() == 'true'
 AUTO_MIRROR= environ.get('AUTO_MIRROR', '')  
 AUTO_MIRROR= AUTO_MIRROR.lower() == 'true'
 
+MULTI_REMOTE_UP= environ.get('MULTI_REMOTE_UP', '')  
+MULTI_REMOTE_UP= MULTI_REMOTE_UP.lower() == 'true'
+
 UPTOBOX_TOKEN = environ.get('UPTOBOX_TOKEN', '')
 if len(UPTOBOX_TOKEN) == 0:
     UPTOBOX_TOKEN = ''
@@ -179,17 +196,27 @@ DEFAULT_OWNER_REMOTE = environ.get('DEFAULT_OWNER_REMOTE', '')
 
 DEFAULT_GLOBAL_REMOTE = environ.get('DEFAULT_GLOBAL_REMOTE', '')
 
-SERVE_USER = environ.get('SERVE_USER', '')
-SERVE_USER = 'admin' if len(SERVE_USER) == 0 else SERVE_USER
+GD_INDEX_URL = environ.get('GD_INDEX_URL', '').rstrip("/")
+if len(GD_INDEX_URL) == 0:
+    GD_INDEX_URL = ''
 
-SERVE_PASS= environ.get('SERVE_PASS', '')
-SERVE_PASS = 'admin' if len(SERVE_PASS) == 0 else SERVE_PASS
+VIEW_LINK = environ.get('VIEW_LINK', '')
+VIEW_LINK = VIEW_LINK.lower() == 'true'
 
-SERVE_IP = environ.get('SERVE_IP', '')
-SERVE_IP = '' if len(SERVE_IP) == 0 else SERVE_IP
+LOCAL_MIRROR = environ.get('LOCAL_MIRROR', '')
+LOCAL_MIRROR = LOCAL_MIRROR.lower() == 'true'
 
-SERVE_PORT = environ.get('SERVE_PORT', '')
-SERVE_PORT= 8080 if len(SERVE_PORT) == 0 else int(SERVE_PORT)
+RC_INDEX_USER = environ.get('RC_INDEX_USER', '')
+RC_INDEX_USER = 'admin' if len(RC_INDEX_USER) == 0 else RC_INDEX_USER
+
+RC_INDEX_PASS= environ.get('RC_INDEX_PASS', '')
+RC_INDEX_PASS = 'admin' if len(RC_INDEX_PASS) == 0 else RC_INDEX_PASS
+
+RC_INDEX_URL = environ.get('RC_INDEX_URL', '')
+RC_INDEX_URL = '' if len(RC_INDEX_URL) == 0 else RC_INDEX_URL
+
+RC_INDEX_PORT = environ.get('RC_INDEX_PORT', '')
+RC_INDEX_PORT= 8080 if len(RC_INDEX_PORT) == 0 else int(RC_INDEX_PORT)
 
 USE_SERVICE_ACCOUNTS = environ.get('USE_SERVICE_ACCOUNTS', '')
 USE_SERVICE_ACCOUNTS = USE_SERVICE_ACCOUNTS.lower() == 'true'
@@ -224,7 +251,16 @@ if len(BASE_URL) == 0:
 
 SERVER_PORT = environ.get('SERVER_PORT', '')
 if len(SERVER_PORT) == 0:
-    SERVER_PORT = 80
+    SERVER_PORT = 81
+
+QB_BASE_URL = environ.get('QB_BASE_URL', '').rstrip("/")
+if len(QB_BASE_URL) == 0:
+    LOGGER.warning('QB_BASE_URL not provided!')
+    QB_BASE_URL = '' 
+
+QB_SERVER_PORT = environ.get('QB_SERVER_PORT', '')
+if len(QB_SERVER_PORT) == 0:
+    QB_SERVER_PORT = 80
 
 UPSTREAM_REPO = environ.get('UPSTREAM_REPO', '')
 if len(UPSTREAM_REPO) == 0:
@@ -244,9 +280,8 @@ if len(GDRIVE_FOLDER_ID) == 0:
 DOWNLOAD_DIR = environ.get('DOWNLOAD_DIR', '')
 if len(DOWNLOAD_DIR) == 0:
     DOWNLOAD_DIR = '/usr/src/app/downloads/'
-else:
-    if not DOWNLOAD_DIR.endswith("/"):
-        DOWNLOAD_DIR = DOWNLOAD_DIR + '/'
+elif not DOWNLOAD_DIR.endswith("/"):
+    DOWNLOAD_DIR = f'{DOWNLOAD_DIR}/'
 
 EXTENSION_FILTER = environ.get('EXTENSION_FILTER', '')
 if len(EXTENSION_FILTER) > 0:
@@ -268,8 +303,10 @@ if len(MEGA_EMAIL_ID) == 0 or len(MEGA_PASSWORD) == 0:
 
 LEECH_LOG = environ.get('LEECH_LOG', '')
 if len(LEECH_LOG) != 0:
+    leech_log.clear()
     aid = LEECH_LOG.split()
-    LEECH_LOG = [int(id_.strip()) for id_ in aid]
+    for id_ in aid:
+        leech_log.append(int(id_.strip()))
 
 BOT_PM = environ.get('BOT_PM', '')
 BOT_PM = BOT_PM.lower() == 'true'
@@ -317,32 +354,39 @@ if not config_dict:
                    'DATABASE_URL': DATABASE_URL,
                    'DEFAULT_OWNER_REMOTE': DEFAULT_OWNER_REMOTE,
                    'DEFAULT_GLOBAL_REMOTE':DEFAULT_GLOBAL_REMOTE,
+                   'DOWNLOAD_DIR':DOWNLOAD_DIR,
                    'EQUAL_SPLITS': EQUAL_SPLITS,
                    'EXTENSION_FILTER': EXTENSION_FILTER,
                    'GDRIVE_FOLDER_ID': GDRIVE_FOLDER_ID,
                    'IS_TEAM_DRIVE': IS_TEAM_DRIVE,
+                   'GD_INDEX_URL': GD_INDEX_URL,
+                   'LOCAL_MIRROR': LOCAL_MIRROR,
                    'LEECH_SPLIT_SIZE': LEECH_SPLIT_SIZE,
                    'LEECH_LOG': LEECH_LOG,
                    'MEGA_API_KEY': MEGA_API_KEY,
                    'MEGA_EMAIL_ID': MEGA_EMAIL_ID,
                    'MEGA_PASSWORD': MEGA_PASSWORD,
+                   'MULTI_REMOTE_UP': MULTI_REMOTE_UP,
                    'MULTI_RCLONE_CONFIG': MULTI_RCLONE_CONFIG, 
                    'OWNER_ID': OWNER_ID,
                    'PARALLEL_TASKS': PARALLEL_TASKS,
+                   'QB_BASE_URL': QB_BASE_URL,
+                   'QB_SERVER_PORT': QB_SERVER_PORT,
                    'REMOTE_SELECTION': REMOTE_SELECTION,
                    'RSS_USER_SESSION_STRING': RSS_USER_SESSION_STRING,
                    'RSS_CHAT_ID': RSS_CHAT_ID,
                    'RSS_COMMAND': RSS_COMMAND,
                    'RSS_DELAY': RSS_DELAY,
+                   'SEARCH_PLUGINS': SEARCH_PLUGINS,
                    'SERVER_SIDE': SERVER_SIDE,
                    'SEARCH_API_LINK': SEARCH_API_LINK,
                    'SEARCH_LIMIT': SEARCH_LIMIT,
                    'SERVER_PORT': SERVER_PORT,
                    'SERVICE_ACCOUNTS_REMOTE': SERVICE_ACCOUNTS_REMOTE,
-                   'SERVE_USER':SERVE_USER,
-                   'SERVE_PASS': SERVE_PASS,
-                   'SERVE_IP': SERVE_IP,
-                   'SERVE_PORT': SERVE_PORT,
+                   'RC_INDEX_URL': RC_INDEX_URL,
+                   'RC_INDEX_PORT': RC_INDEX_PORT,
+                   'RC_INDEX_USER':RC_INDEX_USER,
+                   'RC_INDEX_PASS': RC_INDEX_PASS,
                    'STATUS_LIMIT': STATUS_LIMIT,
                    'STATUS_UPDATE_INTERVAL': STATUS_UPDATE_INTERVAL,
                    'SUDO_USERS': SUDO_USERS,
@@ -354,9 +398,11 @@ if not config_dict:
                    'UPTOBOX_TOKEN': UPTOBOX_TOKEN,
                    'USER_SESSION_STRING': USER_SESSION_STRING,
                    'USE_SERVICE_ACCOUNTS': USE_SERVICE_ACCOUNTS,
+                   'VIEW_LINK': VIEW_LINK,
                    'WEB_PINCODE': WEB_PINCODE}
 
 Popen(f"gunicorn web.wserver:app --bind 0.0.0.0:{SERVER_PORT}", shell=True)
+Popen(f"gunicorn qbitweb.wserver:app --bind 0.0.0.0:{QB_SERVER_PORT}", shell=True)
 srun(["qbittorrent-nox", "-d", "--profile=."])
 if not ospath.exists('.netrc'):
     srun(["touch", ".netrc"])
@@ -373,24 +419,6 @@ if ospath.exists('accounts.zip'):
     osremove('accounts.zip')
 if not ospath.exists('accounts'):
     config_dict['USE_SERVICE_ACCOUNTS'] = False
-
-if len(MEGA_API_KEY) > 0:
-    Popen(["megasdkrest", "--apikey", MEGA_API_KEY])
-    sleep(3)
-    mega_client = MegaSdkRestClient('http://localhost:6090')
-    try:
-        if len(MEGA_EMAIL_ID) > 0 and len(MEGA_PASSWORD) > 0:
-            try:
-                mega_client.login(MEGA_EMAIL_ID, MEGA_PASSWORD)
-            except errors.MegaSdkRestClientException as e:
-                LOGGER.error(e.message['message'])
-                exit(0)
-        else:
-            LOGGER.info("Mega username and password not provided. Starting mega in anonymous mode!")
-    except:
-            LOGGER.info("Mega username and password not provided. Starting mega in anonymous mode!")
-else:
-    sleep(1.5)
 
 aria2 = ariaAPI(ariaClient(host="http://localhost", port=6800, secret=""))
 
@@ -439,3 +467,4 @@ else:
         if v in ["", "*"]:
             del qb_opt[k]
     qb_client.app_set_preferences(qb_opt)
+

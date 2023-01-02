@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-from bot import LOGGER, OWNER_ID, SERVE_IP, SERVE_PORT, SERVE_USER, SERVE_PASS, bot
+from bot import LOGGER, OWNER_ID, RC_INDEX_PASS, RC_INDEX_PORT, RC_INDEX_URL, RC_INDEX_USER, bot
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from asyncio.subprocess import PIPE, create_subprocess_exec as subprocess_exec
 from pyrogram import filters
@@ -19,7 +19,7 @@ async def serve(client, message):
     await list_remotes(message)
   else:
     button= ButtonMaker()
-    url= f"http://{SERVE_IP}:{SERVE_PORT}"
+    url= f"{RC_INDEX_URL}:{RC_INDEX_PORT}"
     msg= f'Serving on <a href={url}>{url}</a>'
     button.cb_buildbutton("Stop", "servemenu^stop")
     await sendMarkup(msg, message, button.build_menu(1))
@@ -40,12 +40,15 @@ async def serve_cb(client, callbackQuery):
   if data[1] == "drive":
     SREMOTE.append(data[2]) 
     await protocol_selection(message)
+  elif data[1] == "all":
+    cmd = ["rclone", "rcd", "--rc-serve", f"--rc-addr=:{RC_INDEX_PORT}", f"--rc-user={RC_INDEX_USER}", f"--rc-pass={RC_INDEX_PASS}", f'--config={path}'] 
+    await rclone_serve(cmd, message)
   elif data[1] == "http":
-    cmd = ["rclone", "serve", "http", f"--addr=:{SERVE_PORT}", f"--user={SERVE_USER}", f"--pass={SERVE_PASS}", f'--config={path}', f"{SREMOTE[0]}:"] 
-    await rclone_serve(cmd, data[1], message)
+    cmd = ["rclone", "serve", "http", f"--addr=:{RC_INDEX_PORT}", f"--user={RC_INDEX_USER}", f"--pass={RC_INDEX_PASS}", f'--config={path}', f"{SREMOTE[0]}:"] 
+    await rclone_serve(cmd, message)
   elif data[1] == "webdav":
-    cmd = ["rclone", "serve", "webdav", f"--addr=:{SERVE_PORT}", f"--user={SERVE_USER}", f"--pass={SERVE_PASS}", f'--config={path}', f"{SREMOTE[0]}:"] 
-    await rclone_serve(cmd, data[1], message)
+    cmd = ["rclone", "serve", "webdav", f"--addr=:{RC_INDEX_PORT}", f"--user={RC_INDEX_USER}", f"--pass={RC_INDEX_PASS}", f'--config={path}', f"{SREMOTE[0]}:"] 
+    await rclone_serve(cmd, message)
   elif data[1] == "stop":
     LOGGER.info(f"Killing process...")
     process_dict['state'] = 'inactive'
@@ -56,14 +59,14 @@ async def serve_cb(client, callbackQuery):
     await query.answer()
     await message.delete()
   
-async def rclone_serve(cmd, protocol, message):
+async def rclone_serve(cmd, message):
   process = await subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE)
   process_dict['pid']= process.pid
   button= ButtonMaker()
-  url= f"http://{SERVE_IP}:{SERVE_PORT}"
-  msg= f'Serving {protocol} on <a href={url}>{url}</a>'
-  msg+= f'\n<b>User</b>: <code>{SERVE_USER}</code>'
-  msg+= f'\n<b>Pass</b>: <code>{SERVE_PASS}</code>'
+  url= f"{RC_INDEX_URL}:{RC_INDEX_PORT}"
+  msg= f'Serving on <a href={url}>{url}</a>'
+  msg+= f'\n<b>User</b>: <code>{RC_INDEX_USER}</code>'
+  msg+= f'\n<b>Pass</b>: <code>{RC_INDEX_PASS}</code>'
   button.cb_buildbutton("Stop", "servemenu^stop")
   await editMarkup(msg, message, button.build_menu(1))
   process_dict['state']= 'active'
@@ -85,8 +88,9 @@ async def list_remotes(message):
     conf.read(path)
     for remote in conf.sections():
         button.cb_buildbutton(f"📁{remote}", f"servemenu^drive^{remote}")
+    button.cb_buildbutton("🌐 All", f"servemenu^all")
     button.cb_buildbutton("✘ Close Menu", f"servemenu^close")
-    await sendMarkup("Select cloud to serve as a remote", message, reply_markup= button.build_menu(2))
+    await sendMarkup("Select cloud to serve as index", message, reply_markup= button.build_menu(2))
 
 serve_handler = MessageHandler(serve, filters= filters.command(BotCommands.ServeCommand) & (CustomFilters.owner_filter | CustomFilters.chat_filter))
 serve_cb_handler = CallbackQueryHandler(serve_cb, filters= filters.regex("servemenu"))

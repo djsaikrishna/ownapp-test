@@ -1,5 +1,5 @@
 from math import ceil
-from os import mkdir, path as ospath, remove as osremove, makedirs
+from os import makedirs, mkdir, path as ospath, remove as osremove
 from shutil import rmtree
 from bot.helper.ext_utils.zip_utils import get_path_size
 from magic import Magic
@@ -8,7 +8,6 @@ from json import loads as jsnloads
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from subprocess import Popen, check_output
 from subprocess import check_output
-from json import loads
 
 ARCH_EXT = [".tar.bz2", ".tar.gz", ".bz2", ".gz", ".tar.xz", ".tar", ".tbz2", ".tgz", ".lzma2",
                 ".zip", ".7z", ".z", ".rar", ".iso", ".wim", ".cab", ".apm", ".arj", ".chm",
@@ -47,17 +46,22 @@ def clean_target(path: str):
 def clean_all():
     aria2.remove_all(True)
     get_client().torrents_delete(torrent_hashes="all")
-    try:
-        rmtree(DOWNLOAD_DIR)
-    except:
-        pass
+    if not config_dict['LOCAL_MIRROR']:
+        try:
+            rmtree(DOWNLOAD_DIR)
+        except:
+            pass
 
 def start_cleanup():
-    try:
-        rmtree(DOWNLOAD_DIR)
-    except:
-        pass
-    makedirs(DOWNLOAD_DIR)
+    if not config_dict['LOCAL_MIRROR']:
+        try:
+            rmtree(DOWNLOAD_DIR)
+        except:
+            pass
+        try:
+            makedirs(DOWNLOAD_DIR)  
+        except:
+            pass
 
 def get_readable_size(size):
     """Get size in readable format"""
@@ -81,17 +85,17 @@ def split_file(path, size, file_, dirpath, split_size, listener, start_time=0, i
         duration = get_media_info(path)[0]
         base_name, extension = ospath.splitext(file_)
         split_size = split_size - 5000000
-        while i <= parts:
+        while i <= parts or start_time < duration - 4:
             parted_name = "{}.part{}{}".format(str(base_name), str(i).zfill(3), str(extension))
             out_path = ospath.join(dirpath, parted_name)
             if not noMap:
                 listener.suproc = Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(start_time),
                                          "-i", path, "-fs", str(split_size), "-map", "0", "-map_chapters", "-1",
-                                         "-c", "copy", out_path])
+                                         "-async", "1", "-strict", "-2", "-c", "copy", out_path])
             else:
                 listener.suproc = Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(start_time),
-                                          "-i", path, "-fs", str(split_size), "-map_chapters", "-1", "-c", "copy",
-                                          out_path])
+                                          "-i", path, "-fs", str(split_size), "-map_chapters", "-1", "-async", "1",
+                                          "-strict", "-2","-c", "copy", out_path])
             listener.suproc.wait()
             if listener.suproc.returncode == -9:
                 return False
@@ -121,7 +125,7 @@ def split_file(path, size, file_, dirpath, split_size, listener, start_time=0, i
                 break
             elif duration == lpd:
                 if not noMap:
-                    LOGGER.warning(f"Retrying without map, -map 0 not working in all situations. Path: {path}")
+                    LOGGER.warning(f"Retrying without map. -map 0 not working in all situations. Path: {path}")
                     try:
                         osremove(out_path)
                     except:
@@ -130,7 +134,7 @@ def split_file(path, size, file_, dirpath, split_size, listener, start_time=0, i
                 else:
                     LOGGER.warning(f"This file has been splitted with default stream and audio, so you will only see one part with less size from orginal one because it doesn't have all streams and audios. This happens mostly with MKV videos. noMap={noMap}. Path: {path}")
                     break
-            elif lpd <= 4:
+            elif lpd <= 3:
                 osremove(out_path)
                 break
             start_time += lpd - 3
@@ -153,17 +157,18 @@ def get_media_streams(path):
         is_audio = True
         return is_video, is_audio
 
-    if not mime_type.startswith('video'):
+    if path.endswith('.bin') or not mime_type.startswith('video') and not mime_type.endswith('octet-stream'):
         return is_video, is_audio
 
     try:
         result = check_output(["ffprobe", "-hide_banner", "-loglevel", "error", "-print_format",
                                "json", "-show_streams", path]).decode('utf-8')
     except Exception as e:
-        LOGGER.error(f'{e}. Mostly file not found!')
+        if not mime_type.endswith('octet-stream'):
+            LOGGER.error(f'{e}. Mostly file not found!')
         return is_video, is_audio
 
-    fields = loads(result).get('streams')
+    fields = eval(result).get('streams')
     if fields is None:
         LOGGER.error(f"get_media_streams: {result}")
         return is_video, is_audio
@@ -186,7 +191,7 @@ def get_media_info(path):
     try:
         result = check_output(["ffprobe", "-hide_banner", "-loglevel", "error", "-print_format",
                                             "json", "-show_format", path]).decode('utf-8')
-        fields = loads(result)['format']
+        fields = eval(result)['format']
     except Exception as e:
         LOGGER.error(f"get_media_info: {e}")
         return 0, None, None
@@ -217,7 +222,6 @@ def get_video_resolution(path):
         LOGGER.error(f"get_video_resolution: {e}")
         return 480, 320
 
-
 def bt_selection_buttons(id_: str):
     if len(id_) > 20:
         gid = id_[:12]
@@ -232,12 +236,12 @@ def bt_selection_buttons(id_: str):
             break
 
     buttons = ButtonMaker()
-    BASE_URL = config_dict['BASE_URL']
+    QB_BASE_URL = config_dict['QB_BASE_URL']
     if config_dict['WEB_PINCODE']:
-        buttons.url_buildbutton("Select Files", f"{BASE_URL}/app/files/{id_}")
+        buttons.url_buildbutton("Select Files", f"{QB_BASE_URL}/app/files/{id_}")
         buttons.cb_buildbutton("Pincode", f"btsel pin {gid} {pincode}")
     else:
-        buttons.url_buildbutton("Select Files", f"{BASE_URL}/app/files/{id_}?pin_code={pincode}")
+        buttons.url_buildbutton("Select Files", f"{QB_BASE_URL}/app/files/{id_}?pin_code={pincode}")
     buttons.cb_buildbutton("Done Selecting", f"btsel done {gid} {id_}")
     return buttons.build_menu(2)
 
